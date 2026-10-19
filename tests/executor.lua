@@ -45,7 +45,10 @@ vim.fn.writefile({}, dir .. "/plot-000000001.png")
 vim.fn.writefile({}, dir .. "/truncated")
 finish(0, vim.json.encode({ stdout = "abc", stderr = "def", error = "日本" }))
 check(result.text == "abcdef" and result.error == "" and result.truncated, "decode and limit combined output and error")
-check(result.path == dir .. "/plot-000000002.png", "select last plot in sequence")
+check(
+	vim.deep_equal(result.paths, { dir .. "/plot-000000001.png", dir .. "/plot-000000002.png" }),
+	"retain plots in sequence"
+)
 check(vim.fn.isdirectory(dir) == 1, "retain resources until consumer releases them")
 result.cleanup()
 result.cleanup()

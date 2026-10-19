@@ -24,7 +24,7 @@ vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "x <- 1", "plot(x)" })
 local cleaned = 0
 local entry = results.put(buf, 1, 1, {
 	text = "text survives",
-	path = "unused.png",
+	paths = { "unused.png" },
 	cleanup = function()
 		cleaned = cleaned + 1
 	end,
@@ -32,10 +32,12 @@ local entry = results.put(buf, 1, 1, {
 drain()
 local function rendered()
 	return vim.api.nvim_buf_get_extmark_by_id(buf, results.namespace, entry.mark, { details = true })[3].virt_lines
+		or {}
 end
 local lines = rendered()
 check(lines[2][1][1] == "text survives", "text displays without image dependency")
 check(lines[3][1][1]:find("snacks.nvim is required", 1, true), "missing backend has inline warning")
+check(#lines == 4 and lines[4][1][1] == "", "blank line follows image warning")
 local created, shown, updated, closed = 0, 0, 0, 0
 local opts
 package.loaded.snacks = {
@@ -92,29 +94,49 @@ for _, inline in ipairs({ false, true }) do
 		"transfer image marks out of Snacks namespace"
 	)
 	check(rendered()[3][1][1] == "placeholder", "render both multi-row and one-row image grids below text")
+	check(#rendered() == 4 and rendered()[4][1][1] == "", "blank line follows image grid")
 end
 vim.api.nvim_buf_set_lines(buf, 0, 0, false, { "inserted" })
 drain()
-check(entry.image.opts.pos[1] == 3 and entry.image.opts.range[1] == 3, "move placement after source edit before range")
+check(
+	entry.plots[1].image.opts.pos[1] == 3 and entry.plots[1].image.opts.range[1] == 3,
+	"move placement after source edit before range"
+)
 results.clear(buf)
 drain()
 check(closed == 1 and cleaned == 1, "clear releases image and evaluation resources")
-local broken = { image = {
+local broken = { plots = { { image = {
 	close = function()
 		error("close failed")
 	end,
-} }
+} } } }
 display.release(broken)
-check(broken.image == nil, "image close failure still clears reference")
+check(broken.plots == nil, "image close failure still clears reference")
 package.loaded.snacks.image.placement.new = function()
 	error("placement failed")
 end
-entry = results.put(buf, 1, 1, { text = "still visible", path = "unused.png", cleanup = function() end })
+entry = results.put(buf, 1, 1, { text = "still visible", paths = { "unused.png" }, cleanup = function() end })
 drain()
 check(
 	rendered()[2][1][1] == "still visible" and rendered()[3][1][1]:find("placement failed", 1, true),
 	"placement failure keeps text and shows warning"
 )
+check(#rendered() == 4 and rendered()[4][1][1] == "", "blank line follows placement failure")
+results.clear(buf)
+entry = results.put(buf, 1, 1, { text = "first\nsecond", cleanup = function() end })
+drain()
+check(#rendered() == 4 and rendered()[4][1][1] == "", "one blank line follows text output")
+display.refresh()
+drain()
+check(#rendered() == 4, "refresh does not accumulate blank lines")
+check(
+	vim.deep_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), { "inserted", "x <- 1", "plot(x)" }),
+	"display spacing leaves source lines unchanged"
+)
+results.clear(buf)
+entry = results.put(buf, 1, 1, { text = "", cleanup = function() end })
+drain()
+check(#rendered() == 0, "empty output adds no spacing or separator")
 results.clear(buf)
 vim.api.nvim_buf_delete(buf, { force = true })
 print("display tests passed (" .. checks .. " checks)")
