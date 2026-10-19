@@ -140,15 +140,23 @@ To call an R function on the object under the cursor and show its text output in
 
 Object inspection (including summary) resolves the name under the cursor (including dots) in the global environment and inherited environments. It does not evaluate member/index expressions or whole names containing spaces/operators: on `column` in `df$column`, it looks up a separate object named `column`.
 
-`inspect(fn, opts)` accepts an ASCII R function name or an exported `package::function`; arbitrary R expressions are not supported. Install the package before using a namespace-qualified function; `library()` is unnecessary. Plots are not displayed.
+`inspect(fn, opts)` accepts an ASCII R function name or an exported `package::function`; R code can be supplied explicitly with `{ r = [[ ... ]] }`. Install the package before using a namespace-qualified function; `library()` is unnecessary. Plots are not displayed.
 
 `title` is optional and defaults to `function(object)` (or `summary(object)` for `base::summary`).
 
-The function receives one argument: the object under the cursor. For extra arguments, define and run a wrapper in the R session, then use `inspect("inspect_ci")`:
+The function receives one argument: the object under the cursor. Embed an anonymous R function in Lua to supply extra arguments. It is evaluated in the R session on each call, without prior registration. Syntax and runtime errors appear in the float.
 
-```r
-inspect_ci <- function(x) stats::confint(x, level = 0.90)
+```lua
+require("arf").inspect({
+  r = [[
+    function(x) {
+      stats::confint(x, level = 0.90)
+    }
+  ]],
+}, { title = "90% confidence interval" })
 ```
+
+The default title for `{ r = ... }` is `inspect(object)`. Supply trusted R code. Functions already defined in the R session remain usable as `inspect("inspect_ci")`.
 
 ### Execution and sessions
 
@@ -183,8 +191,8 @@ require("arf").setup({
   plot_res = 180,             -- DPI; also affects text and line sizes
 
   -- Inspection floats (including summary)
-  summary_width = 120,        -- Columns, including for short output
-  summary_max_height = 20,    -- Maximum rows; shrinks for short output
+  inspect_width = 120,        -- Columns, including for short output
+  inspect_max_height = 20,    -- Maximum rows; shrinks for short output
 
   -- Output display and retention
   output_max_lines = 20,      -- Inline body lines, excluding notices and images
@@ -233,7 +241,7 @@ PNG settings must be positive integers; re-run after changing them. `plot_res` a
 | `output_max_lines` | maximum inline body lines; defaults to 20. An omission notice indicates remaining lines. Notices, the separator, and images do not count toward this limit. |
 | `output_max_bytes` | total retained stdout, stderr, and error text per run; defaults to 1 MiB. Excess text is discarded with a notice. Images do not count toward this limit. |
 | `output_width` / `output_max_height` | saved-output float width and maximum height. |
-| `summary_width` / `summary_max_height` | width and maximum height for all inspection floats, including summary. |
+| `inspect_width` / `inspect_max_height` | width and maximum height for all inspection floats, including summary. |
 
 Use positive integers. Floats fit the screen and shrink vertically for short output. `:ArfOutput` shows all retained text; images appear only inline.
 

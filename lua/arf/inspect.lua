@@ -23,6 +23,17 @@ local function identifier(name)
 end
 
 function M.code(fn, name)
+	if type(fn) == "table" then
+		if type(fn.r) ~= "string" or not fn.r:find("%S") then
+			return nil, "inspect expects { r = non-empty R function code }"
+		end
+		-- Explicit R code is evaluated in the session; object names remain data.
+		return string.format(
+			"(\n%s\n)(base::get(%s, envir = .GlobalEnv, inherits = TRUE))",
+			fn.r,
+			vim.json.encode(name)
+		)
+	end
 	if type(fn) ~= "string" then
 		return nil, "inspect expects an R function name or package::function"
 	end
@@ -54,8 +65,8 @@ end
 function M.show(title, result, owner)
 	local config = require("arf").config
 	require("arf.float").open(title, require("arf.output").full_lines(result), {
-		width = config.summary_width,
-		max_height = config.summary_max_height,
+		width = config.inspect_width,
+		max_height = config.inspect_max_height,
 		owner = owner,
 	})
 end
