@@ -131,6 +131,37 @@ local function run_expressions(buf, expressions)
 	if #expressions == 0 then
 		return vim.notify("arf: No executable R expressions in the buffer", vim.log.levels.WARN)
 	end
+	if busy then
+		return vim.notify("arf: R is running", vim.log.levels.WARN)
+	end
+	-- Add real spacing before capturing the changedtick used by async callbacks.
+	-- Work backwards so the original expression coordinates remain valid.
+	local boundaries, inserted = {}, {}
+	for _, expression in ipairs(expressions) do
+		boundaries[expression.last] = true
+	end
+	local rows = vim.tbl_keys(boundaries)
+	table.sort(rows, function(a, b)
+		return a > b
+	end)
+	for _, last in ipairs(rows) do
+		local following = vim.api.nvim_buf_get_lines(buf, last, last + 1, false)[1]
+		if following == nil or not following:match("^%s*$") then
+			vim.api.nvim_buf_set_lines(buf, last, last, false, { "" })
+			inserted[#inserted + 1] = last
+		end
+	end
+	expressions = vim.deepcopy(expressions)
+	for _, expression in ipairs(expressions) do
+		local shift = 0
+		for _, last in ipairs(inserted) do
+			if last < expression.first then
+				shift = shift + 1
+			end
+		end
+		expression.first = expression.first + shift
+		expression.last = expression.last + shift
+	end
 	local tick = vim.api.nvim_buf_get_changedtick(buf)
 	local results = require("arf.results")
 	local generation = results.generation(buf)

@@ -37,7 +37,6 @@ end
 local lines = rendered()
 check(lines[2][1][1] == "text survives", "text displays without image dependency")
 check(lines[3][1][1]:find("snacks.nvim is required", 1, true), "missing backend has inline warning")
-check(#lines == 4 and lines[4][1][1] == "", "blank line follows image warning")
 local created, shown, updated, closed = 0, 0, 0, 0
 local opts
 package.loaded.snacks = {
@@ -94,7 +93,6 @@ for _, inline in ipairs({ false, true }) do
 		"transfer image marks out of Snacks namespace"
 	)
 	check(rendered()[3][1][1] == "placeholder", "render both multi-row and one-row image grids below text")
-	check(#rendered() == 4 and rendered()[4][1][1] == "", "blank line follows image grid")
 end
 vim.api.nvim_buf_set_lines(buf, 0, 0, false, { "inserted" })
 drain()
@@ -121,14 +119,12 @@ check(
 	rendered()[2][1][1] == "still visible" and rendered()[3][1][1]:find("placement failed", 1, true),
 	"placement failure keeps text and shows warning"
 )
-check(#rendered() == 4 and rendered()[4][1][1] == "", "blank line follows placement failure")
 results.clear(buf)
 entry = results.put(buf, 1, 1, { text = "first\nsecond", cleanup = function() end })
 drain()
-check(#rendered() == 4 and rendered()[4][1][1] == "", "one blank line follows text output")
 display.refresh()
 drain()
-check(#rendered() == 4, "refresh does not accumulate blank lines")
+check(#rendered() == 3, "refresh preserves text lines")
 check(
 	vim.deep_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), { "inserted", "x <- 1", "plot(x)" }),
 	"display spacing leaves source lines unchanged"

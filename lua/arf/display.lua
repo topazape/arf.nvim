@@ -81,7 +81,6 @@ local function draw()
 				end
 				if #lines > 0 then
 					table.insert(lines, 1, { { string.rep("─", width), "ArfSeparator" } })
-					lines[#lines + 1] = { { "", "ArfOutput" } }
 				end
 				set_lines(buf, entry, lines)
 			end
