@@ -68,8 +68,8 @@ end
 arf.run_all()
 assert(#codes == 1)
 assert(
-	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "", "print(x)", "" }),
-	"real blank lines after each expression"
+	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "print(x)" }),
+	"run-all leaves source lines unchanged"
 )
 local busy_tick = vim.api.nvim_buf_get_changedtick(0)
 arf.run_all()
@@ -78,7 +78,7 @@ assert(#codes == 1 and #notices == 1, "busy guard")
 complete()
 assert(#codes == 2 and entries[1][1] == 0)
 complete()
-assert(#entries == 2 and entries[2][1] == 2)
+assert(#entries == 2 and entries[2][1] == 1)
 reset()
 arf.run_all()
 complete("failure")
@@ -106,13 +106,12 @@ assert(#entries == 2, "can run again after stop")
 reset()
 arf.run(1)
 complete()
-local spaced = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-arf.run(1)
+arf.run(2)
 complete()
-assert(vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), spaced), "rerun reuses existing blank line")
-arf.run(3)
-complete()
-assert(vim.api.nvim_buf_get_lines(0, 3, 4, false)[1] == "", "append real blank at EOF")
+assert(
+	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "print(x)" }),
+	"single runs leave source lines unchanged, including EOF"
+)
 package.loaded["arf.expression"] = nil
 local expression = require("arf.expression")
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# comment", "x <- 1", "print(x)" })
