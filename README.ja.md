@@ -44,6 +44,7 @@
 ```lua
 return {
   "topazape/arf.nvim",
+  version = "*",
   ft = "r",
   cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfOutput", "ArfStop" },
   dependencies = {
