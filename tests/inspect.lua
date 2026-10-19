@@ -110,6 +110,21 @@ end
 reset()
 arf.inspect(nil)
 check(#codes == 0 and #notices == 1, "reject nil function")
+for _, fn in ipairs({ { r = "" }, { r = " \n" }, { r = false }, { r = 1 } }) do
+	reset()
+	arf.inspect(fn)
+	check(#codes == 0 and #notices == 1, "reject invalid embedded code")
+end
+reset()
+local embedded = { r = "function(x) stats::confint(x, level = 0.90)" }
+arf.inspect(embedded)
+complete()
+check(opened[1].title == "inspect(model)", "embedded function default title")
+check(contains(codes[1], embedded.r), "embedded code reaches evaluator")
+arf.inspect(embedded, { title = "Confidence interval" })
+complete()
+check(opened[2].title == "Confidence interval", "embedded function custom title")
+check(contains(assert(inspect.code(embedded, quoted)), vim.json.encode(quoted)), "embedded function quotes object name")
 for _, opts in ipairs({ false, "title", { title = false }, { title = {} }, { title = "two\nlines" }, { title = "bad\0title" } }) do
 	reset()
 	arf.inspect("summary", opts)
@@ -123,8 +138,8 @@ check(opened[1].title == "summary(model)", "default title")
 check(last_text() == "result", "text output")
 check(cleaned == 1, "release evaluation resources")
 check(opened[1].opts.owner == source, "float belongs to source buffer")
-check(opened[1].opts.width == arf.config.summary_width, "reuse configured float width")
-check(opened[1].opts.max_height == arf.config.summary_max_height, "reuse configured float height")
+check(opened[1].opts.width == arf.config.inspect_width, "reuse configured float width")
+check(opened[1].opts.max_height == arf.config.inspect_max_height, "reuse configured float height")
 local opts = { title = "Model performance" }
 arf.inspect("performance::model_performance", opts)
 opts.title = "changed after evaluation started"
@@ -263,6 +278,9 @@ end
 local r = {
 	"model <- stats::lm(mpg ~ wt + hp, data = mtcars)",
 	"inspect_ci <- function(x) stats::confint(x, level = 0.90)",
+	"stopifnot(identical(" .. assert(inspect.code(embedded, "model")) .. ", inspect_ci(model)))",
+	"stopifnot(identical(" .. assert(inspect.code({ r = "function(x) x # trailing comment" }, "model")) .. ", model))",
+	"stopifnot(inherits(try(" .. assert(inspect.code({ r = "function(x) stop('embedded error')" }, "model")) .. ", silent = TRUE), 'try-error'))",
 	"stopifnot(identical(" .. assert(inspect.code("summary", "model")) .. ", summary(model)))",
 	"stopifnot(identical(" .. assert(inspect.code("stats::coef", "model")) .. ", stats::coef(model)))",
 	"stopifnot(identical(" .. assert(inspect.code("inspect_ci", "model")) .. ", inspect_ci(model)))",

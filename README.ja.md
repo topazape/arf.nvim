@@ -142,15 +142,23 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 
 オブジェクト確認（summary を含む）はカーソル下の名前（ドットを含む）をグローバル環境から継承先も含めて検索します。`df$column` や添字式、空白・演算子を含む名前全体は評価せず、`column` 上では独立した名前として検索します。
 
-`inspect(fn, opts)` には ASCII の R 関数名、または公開された `package::function` を指定します。任意の R 式には対応しません。パッケージは事前にインストールしてください。`library()` は不要です。画像は表示しません。
+`inspect(fn, opts)` には ASCII の R 関数名、または公開された `package::function` を指定します。R コードは `{ r = [[ ... ]] }` で明示的に指定できます。パッケージは事前にインストールしてください。`library()` は不要です。画像は表示しません。
 
 `title` は省略可能で、既定は `関数名(オブジェクト名)` です。`base::summary` の場合は `summary(オブジェクト名)` になります。
 
-渡す引数はカーソル下のオブジェクト一つです。追加引数が必要なら、R セッションでラッパー関数を定義・実行し、`inspect("inspect_ci")` のように指定します。
+渡す引数はカーソル下のオブジェクト一つです。Lua 内に R の無名関数を書けば、追加引数も指定できます。関数は呼び出しごとに R セッションで評価され、事前登録は不要です。構文や実行時のエラーはフロートに表示されます。
 
-```r
-inspect_ci <- function(x) stats::confint(x, level = 0.90)
+```lua
+require("arf").inspect({
+  r = [[
+    function(x) {
+      stats::confint(x, level = 0.90)
+    }
+  ]],
+}, { title = "90% confidence interval" })
 ```
+
+`{ r = ... }` の既定タイトルは `inspect(オブジェクト名)` です。文字列には信頼できる R コードを指定してください。既存の R セッションで定義した関数も `inspect("inspect_ci")` のように使えます。
 
 ### Execution and sessions
 
@@ -186,8 +194,8 @@ require("arf").setup({
   plot_res = 180,             -- DPI; also affects text and line sizes
 
   -- Inspection floats (including summary)
-  summary_width = 120,        -- Columns, including for short output
-  summary_max_height = 20,    -- Maximum rows; shrinks for short output
+  inspect_width = 120,        -- Columns, including for short output
+  inspect_max_height = 20,    -- Maximum rows; shrinks for short output
 
   -- Output display and retention
   output_max_lines = 20,      -- Inline body lines, excluding notices and images
@@ -236,7 +244,7 @@ PNG 設定は正の整数で指定し、変更後は再実行してください�
 | `output_max_lines` | インラインに表示する本文の最大行数。既定は 20 行で、残りの行数と `:ArfOutput` の案内を表示します。省略案内・区切り線・画像は別枠です。 |
 | `output_max_bytes` | 1 回の実行で保持する stdout・stderr・エラー本文の合計上限。既定は 1 MiB。超過分は破棄し、その旨を表示します。画像はこの上限に含みません。 |
 | `output_width` / `output_max_height` | `ArfOutput` のフロートの幅と最大高さ。 |
-| `summary_width` / `summary_max_height` | summary を含むすべての確認用フロートの幅と最大高さ。 |
+| `inspect_width` / `inspect_max_height` | summary を含むすべての確認用フロートの幅と最大高さ。 |
 
 正の整数で指定します。フロートは画面内に収め、短い出力では高さを縮めます。`:ArfOutput` は保持しているテキストをすべて表示します。画像はインラインだけに表示します。
 

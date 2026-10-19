@@ -9,8 +9,8 @@ M.config = {
 	plot_width = 1200,
 	plot_height = 800,
 	plot_res = 180,
-	summary_width = 120,
-	summary_max_height = 20,
+	inspect_width = 120,
+	inspect_max_height = 20,
 	output_max_lines = 20,
 	output_max_bytes = 1048576,
 	output_width = 120,
@@ -39,8 +39,8 @@ function M.setup(opts)
 		"plot_width",
 		"plot_height",
 		"plot_res",
-		"summary_width",
-		"summary_max_height",
+		"inspect_width",
+		"inspect_max_height",
 		"output_max_lines",
 		"output_max_bytes",
 		"output_width",
@@ -263,7 +263,7 @@ function M.inspect(fn, opts)
 		return vim.notify("arf: " .. err, vim.log.levels.ERROR)
 	end
 	-- Capture the title now, independently of later changes to the caller's options.
-	local display_fn = fn == "base::summary" and "summary" or fn
+	local display_fn = type(fn) == "table" and "inspect" or (fn == "base::summary" and "summary" or fn)
 	local title = opts.title or (display_fn .. "(" .. name .. ")")
 	local win, buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
 	local tick = vim.api.nvim_buf_get_changedtick(buf)
