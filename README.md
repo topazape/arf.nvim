@@ -10,12 +10,12 @@ English | [日本語](README.ja.md)
 
 A Neovim plugin powered by [arf](https://github.com/eitsupi/arf). Run expressions from `.R` files and view text and plots directly below your code, without writing output into the source file.
 
-[Features](#features) · [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [API](#api) · [Highlights](#highlights) · [Troubleshooting](#troubleshooting)
+[Features](#features) · [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [API](#api) · [Highlights](#highlights) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 ## Features
 
-- **Run complete expressions** — Tree-sitter identifies pipelines, ggplot expressions, function definitions, and more. Visual selections work too.
-- **Inline results** — Display text and plots below the executed code while keeping results from other ranges.
+- **Run expressions or the whole buffer** — Tree-sitter identifies pipelines, ggplot expressions, function definitions, and more. Visual selections and explicit line ranges work too.
+- **Inline results** — Display text and plots below the code, stacking multiple images in generation order and keeping results from other ranges.
 - **Persistent R session** — Start a session automatically on first execution and reuse objects across runs.
 - **Inspect saved output** — Open output and errors in a searchable, copyable floating window.
 - **Object inspection** — Call `summary()` or another R function on the object under the cursor.
@@ -84,26 +84,20 @@ plot(
   xlab = "Miles per gallon",
   ylab = "Weight (1000 lbs)"
 )
+
+model <- lm(mpg ~ wt, data = x)
+plot(model)
 ```
 
 Run `x <- mtcars` first, then `head(x)` or `plot(...)`. Place the cursor on `x` and press `<LocalLeader>fk` to open its summary; press `q` to close the float.
+
+Run `model <- ...` followed by `plot(model)` to display four diagnostic plots vertically.
 
 Unless `pid` selects an external session, `arf headless` starts automatically on the first evaluation; no manual session startup is needed. To run the whole buffer, press `<LocalLeader>fR` or use `:ArfRunAll`.
 
 ### Keymaps
 
-The plugin does not register R buffer keymaps automatically. The Installation example configures the following keys through lazy.nvim. The float-local `q` mapping is provided by the plugin.
-
-| Key | Mode | Scope | Action |
-| --- | --- | --- | --- |
-| `<LocalLeader>fr` | Normal | R buffer | Run the top-level expression containing the cursor. |
-| `<LocalLeader>fr` | Visual | R buffer | Run the selected lines in full. |
-| `<LocalLeader>fR` | Normal | R buffer | Run all top-level expressions in order. |
-| `<LocalLeader>fc` | Normal | R buffer | Clear results in the current buffer, keeping R objects intact. |
-| `<LocalLeader>fs` | Normal | R buffer | Stop the owned R session and clear all results. |
-| `<LocalLeader>fo` | Normal | R buffer | Show saved output for the execution under the cursor. |
-| `<LocalLeader>fk` | Normal | R buffer | Show a summary of the object under the cursor. |
-| `q` | Normal | arf floating window | Close the floating window. |
+The plugin does not register R buffer keymaps automatically. The Installation example registers keys through lazy.nvim; see [Commands](#commands) for their actions.
 
 `<LocalLeader>` follows `vim.g.maplocalleader` and defaults to backslash: `\fr` to run and `\fc` to clear. To use a comma, set it before the plugin loads:
 
@@ -111,22 +105,20 @@ The plugin does not register R buffer keymaps automatically. The Installation ex
 vim.g.maplocalleader = "," -- ,fr to run, ,fc to clear
 ```
 
-Define keys through lazy.nvim `keys` (set `ft = "r"` on each entry) or `vim.keymap.set()`. When upgrading from automatic keymaps, add the `keys` configuration from Installation to keep using these bindings and remove the obsolete `default_keymaps` option.
-
-Customize the `keys` entries in Installation. The Visual mapping uses `:ArfRun<CR>` to pass the selected lines.
+Customize the lazy.nvim `keys` entries in Installation or use `vim.keymap.set()`. The Visual mapping uses `:ArfRun<CR>` to pass complete selected lines. Press `q` to close a float.
 
 ### Commands
 
-The example keymaps call these commands. You can also run them manually:
+These commands are available directly; the keys shown are configured by the Installation example:
 
-| Command | Action |
-| --- | --- |
-| `:ArfRun` | Run the current expression. Use `:3,5ArfRun` to run complete lines in an explicit range. |
-| `:ArfRunAll` | Run every top-level expression in the current buffer in order, displaying results below each expression. |
-| `:ArfClear` | Remove output, images, and signs from the current buffer. |
-| `:ArfSummary` | Call `base::summary()` on the object under the cursor and show it in a float. |
-| `:ArfOutput` | Open saved output for the execution range under the cursor without evaluating R again. Search with `/` and copy with `y`. |
-| `:ArfStop` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. |
+| Command | Example key | Action |
+| --- | --- | --- |
+| `:ArfRun` | `<LocalLeader>fr` | Run the current expression in Normal mode or complete selected lines in Visual mode. Use `:3,5ArfRun` to run complete lines in an explicit range. |
+| `:ArfRunAll` | `<LocalLeader>fR` | Run every top-level expression in the current buffer in order, displaying results below each expression. |
+| `:ArfClear` | `<LocalLeader>fc` | Remove output, images, and signs from the current buffer. |
+| `:ArfSummary` | `<LocalLeader>fk` | Call `base::summary()` on the object under the cursor and show it in a float. |
+| `:ArfOutput` | `<LocalLeader>fo` | Open saved output for the execution range under the cursor without evaluating R again. Search with `/` and copy with `y`. |
+| `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. |
 
 ### Object inspection
 
@@ -146,6 +138,8 @@ To call an R function on the object under the cursor and show its text output in
 },
 ```
 
+Object inspection (including summary) resolves the name under the cursor (including dots) in the global environment and inherited environments. It does not evaluate member/index expressions or whole names containing spaces/operators: on `column` in `df$column`, it looks up a separate object named `column`.
+
 `inspect(fn, opts)` accepts an ASCII R function name or an exported `package::function`; arbitrary R expressions are not supported. Install the package before using a namespace-qualified function; `library()` is unnecessary. Plots are not displayed.
 
 `title` is optional and defaults to `function(object)` (or `summary(object)` for `base::summary`).
@@ -162,7 +156,7 @@ inspect_ci <- function(x) stats::confint(x, level = 0.90)
 - `ArfRunAll` runs top-level expressions in the existing session, stopping at the first R error or IPC failure. Completed results and existing results not reached remain. `:%ArfRun` evaluates the buffer as one range, with combined output at the end.
 - Results appear below the executed range. Overlapping runs replace results; edits inside a completed range remove them.
 - Editing, clearing, or unloading the source buffer while evaluation is pending discards its result and stops subsequent expressions, without interrupting R.
-- Each Neovim instance shares one R session, using `:pwd` at startup. Later `:cd` changes do not affect R. Neovim exits stop only automatically started sessions.
+- All buffers in a Neovim instance share one R session. Automatically started sessions use `:pwd` at the first evaluation; later `:cd` changes do not affect R. External sessions retain their existing working directory. Neovim exits stop only automatically started sessions.
 
 ## Configuration
 
@@ -220,11 +214,13 @@ require("arf").setup({
 ### Session
 
 - `executable`: command name or executable path. To change the executable for a running session, use `ArfStop` and evaluate again.
-- `pid`: omitted by default for automatic startup. To use an existing session, obtain its PID with `arf ipc list` and supply it as a number.
+- `pid`: omitted by default for automatic startup. To use an existing session, obtain its PID with `arf ipc list` and supply it as a number. Manage its lifecycle and working directory separately. `ArfStop` does not stop an external session or clear its results.
 - `startup_timeout`: startup wait time. Failed or timed-out startup is retried on the next evaluation.
-- `timeout`: IPC response wait time for each evaluation, not for the entire `ArfRunAll` sequence. A timeout alone does not stop R computation; use `ArfStop` to terminate the owned session. With an explicit `pid`, `ArfStop` does not stop evaluation or clear results; manage the external session separately.
+- `timeout`: IPC response wait time for each evaluation, not for the entire `ArfRunAll` sequence. A timeout alone does not stop R computation; use `ArfStop` to terminate the owned session. Stop evaluations in an external session separately.
 
 ### Plots
+
+All plots from an evaluation are displayed vertically in generation order (for example, `plot(lm(mpg ~ wt, data = mtcars))`). Each image uses the configured size limits.
 
 `image_width` / `image_height` cap display size in cells; `plot_width` / `plot_height` / `plot_res` set PNG dimensions in pixels and resolution in dpi. Window size also constrains placement.
 
@@ -234,12 +230,14 @@ PNG settings must be positive integers; re-run after changing them. `plot_res` a
 
 | Option | Description |
 | --- | --- |
-| `output_max_lines` | maximum inline body lines; defaults to 20. An omission notice indicates remaining lines. Notices and images do not count toward this limit. |
+| `output_max_lines` | maximum inline body lines; defaults to 20. An omission notice indicates remaining lines. Notices, the separator, and images do not count toward this limit. |
 | `output_max_bytes` | total retained stdout, stderr, and error text per run; defaults to 1 MiB. Excess text is discarded with a notice. Images do not count toward this limit. |
 | `output_width` / `output_max_height` | saved-output float width and maximum height. |
 | `summary_width` / `summary_max_height` | width and maximum height for all inspection floats, including summary. |
 
-Use positive integers. Floats fit the screen and shrink vertically for short output.
+Use positive integers. Floats fit the screen and shrink vertically for short output. `:ArfOutput` shows all retained text; images appear only inline.
+
+Notifications and omission notices are in English; R output follows R's language settings.
 
 - `output_max_lines` applies on the next refresh; `output_max_bytes` requires re-evaluation; float dimensions require reopening.
 - Retention limits apply to each run-all expression and each inspection. Inspection floats include truncation notices.
@@ -335,10 +333,9 @@ Image placeholders use colors managed by Snacks. arf float colors apply only to 
 ## Limitations
 
 - One evaluation at a time; additional runs and inspections are rejected throughout `ArfRunAll`. Output appears after each evaluation, without streaming or resuming interrupted computations.
-- Only the final plot per evaluation is displayed. Run-all shows plots per expression, but overlapping ranges, including expressions on one line, replace each other.
-- Object inspection (including summary) resolves the name under the cursor (including dots) in the global environment and inherited environments. It does not evaluate member/index expressions or whole names containing spaces/operators: on `column` in `df$column`, it looks up a separate object named `column`.
-- Results cannot be saved/restored across sessions. Output limits apply per evaluation, without a total limit across results.
-- stdout precedes stderr, losing their interleaving. Notifications are in English; R output follows R's language settings.
+- Results are tracked by line range. Running another expression on the same line replaces the previous result.
+- Results cannot be saved/restored across sessions. Text retention limits apply per evaluation; there is no total limit across results or limit on image count or total image size.
+- stdout precedes stderr, losing their interleaving.
 
 ## Troubleshooting
 

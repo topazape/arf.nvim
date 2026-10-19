@@ -120,7 +120,7 @@ local({
 				text = text,
 				chunks = chunks,
 				truncated = vim.uv.fs_stat(dir .. "/truncated") ~= nil,
-				path = files[#files],
+				paths = files,
 				error = type(reply.error) == "string" and reply.error or nil,
 				cleanup = cleanup,
 			}, config.output_max_bytes))

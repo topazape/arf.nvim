@@ -4,10 +4,12 @@ local M = {}
 local pending = false
 
 function M.release(entry)
-	if entry.image then
-		pcall(entry.image.close, entry.image)
-		entry.image = nil
+	for _, plot in ipairs(entry.plots or {}) do
+		if plot.image then
+			pcall(plot.image.close, plot.image)
+		end
 	end
+	entry.plots = nil
 end
 
 local function set_lines(buf, entry, lines)
@@ -36,37 +38,42 @@ local function draw()
 			end
 			for _, entry in ipairs(state.entries) do
 				local lines = require("arf.output").preview(entry.result)
-				if entry.result.path then
+				if entry.result.paths and #entry.result.paths > 0 then
 					if available == nil then
 						local ok, value, message = pcall(backend.available)
 						available, reason = ok and value, ok and message or tostring(value)
 					end
 					if available then
-						if not entry.image then
-							local ok, image = pcall(backend.new, buf, entry.last, entry.result.path, function(grid)
-								entry.grid = grid
-								M.refresh()
-							end)
-							if ok then
-								entry.image = image
-							else
-								entry.image_error = tostring(image)
-							end
-						end
-						if entry.image then
-							entry.image.opts.pos = { entry.last + 1, 0 }
-							entry.image.opts.range = { entry.last + 1, 0, entry.last + 1, 0 }
-							for _, win in ipairs(vim.fn.win_findbuf(buf)) do
-								if vim.api.nvim_win_get_tabpage(win) == vim.api.nvim_get_current_tabpage() then
-									entry.image:show()
-									break
+						entry.plots = entry.plots or {}
+						for index, path in ipairs(entry.result.paths) do
+							local plot = entry.plots[index] or {}
+							entry.plots[index] = plot
+							if not plot.image then
+								local ok, image = pcall(backend.new, buf, entry.last, path, function(grid)
+									plot.grid = grid
+									M.refresh()
+								end)
+								if ok then
+									plot.image = image
+								else
+									plot.image_error = tostring(image)
 								end
 							end
-							entry.image:update()
-						end
-						vim.list_extend(lines, entry.grid or {})
-						if entry.image_error then
-							lines[#lines + 1] = { { "[plot: " .. entry.image_error .. "]", "ArfWarning" } }
+							if plot.image then
+								plot.image.opts.pos = { entry.last + 1, 0 }
+								plot.image.opts.range = { entry.last + 1, 0, entry.last + 1, 0 }
+								for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+									if vim.api.nvim_win_get_tabpage(win) == vim.api.nvim_get_current_tabpage() then
+										plot.image:show()
+										break
+									end
+								end
+								plot.image:update()
+							end
+							vim.list_extend(lines, plot.grid or {})
+							if plot.image_error then
+								lines[#lines + 1] = { { "[plot: " .. plot.image_error .. "]", "ArfWarning" } }
+							end
 						end
 					else
 						lines[#lines + 1] = { { "[plot: " .. reason .. "]", "ArfWarning" } }
