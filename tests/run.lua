@@ -24,6 +24,7 @@ local suites = {
 	"config",
 	"commands",
 	"float",
+	"highlights",
 	"signs",
 	"integration",
 }

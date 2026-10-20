@@ -26,7 +26,7 @@ for _, case in ipairs({
 	local ids = signs.place(buf, 0, 2, case[1], case[2])
 	local placed = marks()
 	assert(#placed == 3 and placed[1][4].sign_text:match("^|"))
-	assert(placed[1][4].sign_hl_group == (case[2] and "WarningMsg" or "Comment"))
+	assert(placed[1][4].sign_hl_group == "Comment")
 	assert(placed[3][4].sign_text:sub(1, 1) == case[3] and placed[3][4].sign_hl_group == case[4])
 	assert(placed[3][4].priority == 17 and ids.timer == nil)
 	signs.clear(buf, ids)

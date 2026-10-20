@@ -176,6 +176,8 @@ Set only the options you want to change, using `opts` in your lazy.nvim spec. Ne
 
 ```lua
 require("arf").setup({
+  theme = "default",         -- "default", "auto", or "neon"
+
   -- arf / R session
   executable = "arf",        -- Command name or executable path
   pid = nil,                 -- nil: start a session; number: use an existing session
@@ -210,7 +212,7 @@ require("arf").setup({
     error = { text = "", hl = "ArfSignError" },
     running = {
       text = "…",            -- Initial symbol; also used when animation is disabled
-      hl = "ArfSignRunning",  -- Also applies to range markers during execution
+      hl = "ArfSignRunning",
       frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
       interval = 80,          -- Frame interval in milliseconds
     },
@@ -282,7 +284,7 @@ require("arf").setup({
 
 The spinner uses standard Unicode characters and updates only the last line of the running range. Its timer stops on completion, error, stop, clear, edits inside the range, or buffer deletion. Set `running.text = ""` to hide the final-line sign and disable its animation.
 
-Range markers use `signs.running.hl` during execution. Configuration changes apply to subsequent runs. If signs are hidden, check `:set signcolumn=yes`.
+Range markers always use `signs.range.hl`; only the final-line status uses `signs.running.hl` during execution. Configuration changes apply to subsequent runs. If signs are hidden, check `:set signcolumn=yes`.
 
 ## API
 
@@ -308,23 +310,42 @@ R evaluation through `run`, `run_all`, `inspect`, and the `summary` shorthand is
 
 ## Highlights
 
-Output, floats, and signs use dedicated highlight groups. Customize colors with Neovim's `nvim_set_hl()`, rather than plugin options.
+Output, floats, and signs use dedicated highlight groups. Select their defaults with `theme`:
 
-| Group | Purpose | Default |
+- `"default"` (default): use a neutral palette with charcoal/off-white float backgrounds, gray text and borders, and restrained blue, green, amber, and red status colors for all `Arf*` groups. Dark and light variants follow `background`. The editor's colorscheme is unchanged.
+- `"auto"`: use the current colorscheme's standard highlights, with output and separator contrast adjusted against the background.
+- `"neon"`: use a vivid neon palette with purple float backgrounds, lavender output, hot-pink borders and titles, cyan execution indicators, lime success, yellow warnings, and pink-red errors. Dark and light variants follow `background`; only arf highlights change.
+
+```lua
+require("arf").setup({ theme = "default" })
+-- Use "auto" to follow the colorscheme, or "neon" for neon colors.
+```
+
+Repeated `setup()` calls switch themes immediately. All themes preserve custom `Arf*` definitions; customize individual groups with `nvim_set_hl()` after setup. Theme defaults are reapplied on `ColorScheme` and `background` changes. The defaults below describe `"auto"`.
+
+| Group | Purpose | Auto theme default |
 | --- | --- | --- |
-| `ArfOutput` | normal output | The `Normal` foreground with each RGB component darkened by 15% |
-| `ArfSeparator` | full-width line between source and inline output | `NonText` |
+| `ArfOutput` | normal output | `Normal` foreground blended with 15% background |
+| `ArfSeparator` | full-width rule before inline output | `Normal` foreground blended with 75% background |
 | `ArfMessage` | `message()` and package startup messages | `DiagnosticInfo` |
 | `ArfStderr` | other stderr, including warnings and direct writes | `DiagnosticWarn` |
 | `ArfFloatNormal` | inspection and output float text and background | `NormalFloat` |
+| `ArfFloatOutput` | normal output inside floats | float foreground blended with 5% float background |
+| `ArfFloatMessage` | messages inside floats | `ArfMessage` |
+| `ArfFloatStderr` | stderr inside floats | `ArfStderr` |
+| `ArfFloatError` | errors inside floats | `ArfError` |
+| `ArfFloatWarning` | notices inside floats | `ArfWarning` |
+| `ArfFloatEmpty` | empty-output placeholder | `ArfFloatOutput` |
 | `ArfFloatBorder` | float borders | `FloatBorder` |
 | `ArfFloatTitle` | float titles | `FloatTitle` |
-| `ArfSignRunning` | running execution range | `DiagnosticInfo` |
+| `ArfSignRunning` | running sign | `DiagnosticInfo` |
 | `ArfError` | execution errors | `DiagnosticError` |
 | `ArfWarning` | notices, including image display warnings | `DiagnosticWarn` |
-| `ArfSignRange` | the `│` range marker | `ArfOutput` |
+| `ArfSignRange` | the `│` range marker | `ArfSeparator` |
 | `ArfSignSuccess` | success sign | `DiagnosticOk` |
 | `ArfSignError` | error sign | `DiagnosticError` |
+
+Colors come from standard colorscheme groups. When RGB foreground or background is unavailable, output links to its source group and the separator links to `NonText`.
 
 Defaults are reapplied on colorscheme changes without overwriting existing definitions. To set your own colors:
 
