@@ -112,6 +112,10 @@ assert(
 	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "print(x)" }),
 	"single runs leave source lines unchanged, including EOF"
 )
+if vim.env.ARF_TEST_MODE == "unit" then
+	print("run-all tests passed")
+	return
+end
 package.loaded["arf.expression"] = nil
 local expression = require("arf.expression")
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# comment", "x <- 1", "print(x)" })
