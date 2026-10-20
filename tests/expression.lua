@@ -25,6 +25,10 @@ end
 value, err = expression.all(0)
 check(value == nil and err:find("syntax tree"), "parser failure is reported")
 vim.treesitter.get_parser = get_parser
+if vim.env.ARF_TEST_MODE == "unit" then
+	print("expression unit tests passed (" .. checks .. " checks)")
+	return
+end
 lines({ "x <- 1" })
 local all, parser_error = expression.all(0)
 if not all then

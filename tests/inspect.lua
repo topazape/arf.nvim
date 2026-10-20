@@ -271,6 +271,9 @@ arf.inspect, arf.summary = original_inspect, original_summary
 print("inspect Lua tests passed (" .. checks .. " checks)")
 
 -- Optional integration: evaluate the generated R expressions without arf IPC.
+if vim.env.ARF_TEST_MODE == "unit" then
+	return
+end
 if vim.fn.executable("Rscript") ~= 1 then
 	print("Rscript unavailable; R integration skipped")
 	return
