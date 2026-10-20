@@ -27,8 +27,7 @@ local function draw()
 	local available, reason
 	for buf, state in pairs(require("arf.results").all()) do
 		if vim.api.nvim_buf_is_loaded(buf) then
-			-- Extmarks are shared by all windows showing the buffer. Use the
-			-- widest text area; narrower windows clip virtual lines at their edge.
+			-- Shared virtual lines use the widest text area; narrower windows clip them.
 			local width = 1
 			for _, win in ipairs(vim.fn.win_findbuf(buf)) do
 				local info = vim.fn.getwininfo(win)[1]

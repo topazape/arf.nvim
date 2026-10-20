@@ -179,6 +179,8 @@ require("arf").inspect({
 
 ```lua
 require("arf").setup({
+  theme = "default",         -- "default", "auto", or "neon"
+
   -- arf / R session
   executable = "arf",        -- Command name or executable path
   pid = nil,                 -- nil: start a session; number: use an existing session
@@ -213,7 +215,7 @@ require("arf").setup({
     error = { text = "", hl = "ArfSignError" },
     running = {
       text = "…",            -- Initial symbol; also used when animation is disabled
-      hl = "ArfSignRunning",  -- Also applies to range markers during execution
+      hl = "ArfSignRunning",
       frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
       interval = 80,          -- Frame interval in milliseconds
     },
@@ -285,7 +287,7 @@ require("arf").setup({
 スピナーは標準の Unicode 記号で回転します。実行中の最終行だけを更新し、完了・エラー・停止・クリア・実行範囲内の編集・バッファ破棄時にはタイマーを終了します。
 `running.text = ""` なら最終行の記号とアニメーションを非表示にします。追加のアイコンプラグインへの依存はありません。
 
-実行中の縦線には `signs.running.hl` を適用します。設定変更は次の実行から反映されます。
+範囲の縦線には常に `signs.range.hl` を適用し、実行中の最終行の状態表示だけに `signs.running.hl` を適用します。設定変更は次の実行から反映されます。
 サインが見えない場合は `:set signcolumn=yes` を確認してください。
 
 ## API
@@ -312,24 +314,43 @@ arf.stop()         -- Terminate the owned session and clear results in all buffe
 
 ## Highlights
 
-出力・フロート・サインは、以下のすべての専用ハイライトグループで色を設定できます。
+出力・フロート・サインの既定配色は `theme` で選択できます。
+
+- `"default"`（既定）: チャコール／オフホワイトのフロート背景、グレーの本文と枠線、控えめな青・緑・アンバー・赤の状態色を使うニュートラルな配色です。フロート背景・本文・枠線・タイトル・実行状態を含み、`background` に応じてダーク・ライトの配色を使います。エディタ全体のカラースキームは変更しません。
+- `"auto"`: 現在のカラースキームの標準ハイライトを参照し、出力と区切り線の濃淡を背景色に合わせて調整します。
+- `"neon"`: 紫系のフロート背景・ラベンダーの本文・ホットピンクの枠線とタイトル・シアンの実行表示・ライムの成功・黄色の警告・赤ピンクのエラーを使うネオン配色です。`background` に応じたダーク・ライト配色を持ち、変更するのは arf のハイライトだけです。
+
+```lua
+require("arf").setup({ theme = "default" })
+-- カラースキームに合わせるなら "auto"、ネオン配色なら "neon"。
+```
+
+`setup()` の再実行で即座に切り替わります。すべてのテーマで個別に設定された `Arf*` グループを保持します。個別調整は setup 後に `nvim_set_hl()` で行えます。`ColorScheme` または `background` の変更時にも選択したテーマを再適用します。以下は `"auto"` の既定値です。
 色の設定は `opts` ではなく、Neovim の `nvim_set_hl()` を使います。
 
-| グループ | 用途 | 既定 |
+| グループ | 用途 | auto の既定 |
 | --- | --- | --- |
-| `ArfOutput` | 通常出力 | `Normal` の文字色を RGB 各成分で 15% 暗くした色 |
-| `ArfSeparator` | コードとインライン出力を表示幅いっぱいに区切る罫線 | `NonText` |
+| `ArfOutput` | 通常出力 | `Normal` の文字色に背景色を 15% ブレンドした色 |
+| `ArfSeparator` | インライン出力の前の表示幅いっぱいの罫線 | `Normal` の文字色に背景色を 75% ブレンドした色 |
 | `ArfMessage` | `message()` やパッケージ起動時のメッセージ | `DiagnosticInfo` |
 | `ArfStderr` | その他の stderr（警告や stderr への直接出力） | `DiagnosticWarn` |
 | `ArfFloatNormal` | 確認用・出力フロートの本文と背景 | `NormalFloat` |
+| `ArfFloatOutput` | フロート内の通常出力 | フロートの文字色に背景色を 5% ブレンドした色 |
+| `ArfFloatMessage` | フロート内のメッセージ | `ArfMessage` |
+| `ArfFloatStderr` | フロート内の stderr | `ArfStderr` |
+| `ArfFloatError` | フロート内のエラー | `ArfError` |
+| `ArfFloatWarning` | フロート内の案内 | `ArfWarning` |
+| `ArfFloatEmpty` | 出力がない場合の表示 | `ArfFloatOutput` |
 | `ArfFloatBorder` | 確認用・出力フロートの枠 | `FloatBorder` |
 | `ArfFloatTitle` | 確認用・出力フロートのタイトル | `FloatTitle` |
-| `ArfSignRunning` | 実行中の範囲 | `DiagnosticInfo` |
+| `ArfSignRunning` | 実行中のマーク | `DiagnosticInfo` |
 | `ArfError` | 実行エラー | `DiagnosticError` |
 | `ArfWarning` | 画像表示などの案内 | `DiagnosticWarn` |
-| `ArfSignRange` | 実行範囲の `│` | `ArfOutput` |
+| `ArfSignRange` | 実行範囲の `│` | `ArfSeparator` |
 | `ArfSignSuccess` | 実行成功のマーク | `DiagnosticOk` |
 | `ArfSignError` | 実行エラーのマーク | `DiagnosticError` |
+
+配色はカラースキームの標準グループから取得します。RGB の文字色や背景色が未定義の場合、出力は元のグループ、区切り線は `NonText` にリンクします。
 
 カラースキーム変更時にも既定の色とリンクを設定します。既に定義された色は上書きしません。
 好みの色に変更する場合は、Neovim 設定に次のように追加できます。

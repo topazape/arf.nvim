@@ -1,6 +1,7 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local arf = require("arf")
 local defaults = vim.deepcopy(arf.config)
+assert(defaults.theme == "default", "default theme uses the neutral palette")
 arf.setup({ output_width = 70, signs = { success = { text = "✓" } } })
 arf.setup({ output_max_height = 12 })
 assert(arf.config.output_width == 70 and arf.config.output_max_height == 12, "merge repeated setup")
@@ -10,6 +11,9 @@ local function reject(opts)
 	local before = vim.deepcopy(arf.config)
 	assert(not pcall(arf.setup, opts), "reject " .. vim.inspect(opts))
 	assert(vim.deep_equal(before, arf.config), "failed setup preserves configuration")
+end
+for _, value in ipairs({ "slate", "unknown", false, 1, {} }) do
+	reject({ theme = value })
 end
 for _, key in ipairs({
 	"plot_width",

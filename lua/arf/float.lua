@@ -1,6 +1,13 @@
 local M = {}
 local window, owner
 local ns = vim.api.nvim_create_namespace("arf.float")
+local float_highlights = {
+	ArfOutput = "ArfFloatOutput",
+	ArfMessage = "ArfFloatMessage",
+	ArfStderr = "ArfFloatStderr",
+	ArfError = "ArfFloatError",
+	ArfWarning = "ArfFloatWarning",
+}
 
 function M.close(buf)
 	if buf and owner ~= buf then
@@ -16,7 +23,7 @@ function M.open(title, lines, opts)
 	require("arf.highlights")
 	M.close()
 	if #lines == 0 then
-		lines = { { { "(no output)", "NormalFloat" } } }
+		lines = { { { "(no output)", "ArfFloatEmpty" } } }
 	end
 	local text = {}
 	for _, line in ipairs(lines) do
@@ -36,7 +43,8 @@ function M.open(title, lines, opts)
 		local col = 0
 		for _, chunk in ipairs(line) do
 			if #chunk[1] > 0 and chunk[2] then
-				vim.api.nvim_buf_set_extmark(buf, ns, row - 1, col, { end_col = col + #chunk[1], hl_group = chunk[2] })
+				local hl = float_highlights[chunk[2]] or chunk[2]
+				vim.api.nvim_buf_set_extmark(buf, ns, row - 1, col, { end_col = col + #chunk[1], hl_group = hl })
 			end
 			col = col + #chunk[1]
 		end

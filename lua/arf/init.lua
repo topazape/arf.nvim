@@ -1,5 +1,6 @@
 local M = {}
 M.config = {
+	theme = "default",
 	executable = "arf",
 	pid = nil,
 	timeout = 300000,
@@ -35,6 +36,10 @@ local cancel_current
 
 function M.setup(opts)
 	local config = vim.tbl_deep_extend("force", M.config, opts or {})
+	assert(
+		config.theme == "auto" or config.theme == "default" or config.theme == "neon",
+		'arf: theme must be "default", "auto", or "neon"'
+	)
 	for _, key in ipairs({
 		"plot_width",
 		"plot_height",
@@ -54,6 +59,7 @@ function M.setup(opts)
 	end
 	require("arf.signs").validate(config.signs)
 	M.config = config
+	require("arf.highlights").apply(config.theme)
 end
 
 -- Inline execution and inspection use the same session and busy guard.
