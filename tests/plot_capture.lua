@@ -1,6 +1,10 @@
 -- Run with: nvim --headless -u NONE -l tests/plot_capture.lua
 -- Requires R. Exercise the generated R wrapper without an arf IPC session.
 vim.opt.rtp:prepend(vim.fn.getcwd())
+if vim.fn.executable("R") ~= 1 then
+	print("R unavailable; plot capture integration skipped")
+	return
+end
 local config = require("arf").config
 local system = vim.system
 vim.system = function(_, opts, callback)
