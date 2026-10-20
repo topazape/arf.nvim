@@ -357,36 +357,6 @@ Image placeholders use colors managed by Snacks. arf float colors apply only to 
 
 Built with AI-assisted “vibe coding” for my own R workflow. It already does what I need, so I’m keeping the scope small. If you’d like additional features, feel free to fork it and make it your own.
 
-## Development
-
-Run all 16 test suites from the repository root:
-
-```sh
-nvim --headless -u NONE -l tests/run.lua
-```
-
-Each suite runs in a separate Neovim process. Tests cover configuration, commands,
-expression selection, execution, saved output and floats, signs, buffer edits,
-resource cleanup, multiple plots, and the Snacks grid renderer. The real arf test
-starts its own headless session, checks persistent R objects and error recovery,
-captures PNGs, and verifies shutdown and restart. It stops only its own session.
-
-R, Rscript, arf, the R Tree-sitter parser, and Snacks are required for all
-integration checks. Locally, unavailable optional dependencies are reported as
-skipped. To require every integration check:
-
-```sh
-ARF_TEST_STRICT=1 ARF_TEST_SNACKS=/path/to/snacks.nvim \
-  nvim --headless -u NONE -l tests/run.lua
-```
-
-GitHub Actions runs this strict mode on Linux and macOS, with Neovim 0.12.6,
-R 4.6.1, arf 0.6.0, Snacks 2.31.0, and a fixed R parser revision. Dependency
-installation and the parser build are defined in `.github/workflows/ci.yml`.
-The parser installer uses a C compiler and does not require a parser manager.
-Terminal image transport still requires a manual check in a supported terminal;
-the automated tests verify PNG capture, placement integration, and placeholder grids.
-
 ## License
 
 [MIT](LICENSE) © 2026 topazape.
