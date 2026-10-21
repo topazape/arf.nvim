@@ -38,7 +38,12 @@ local({
   }
   sink(.arf_stdout, type = "output")
   sink(.arf_stderr, type = "message")
+  .arf_tibble_rows <- %s
+  .arf_previous_options <- NULL
   tryCatch({
+    if (!is.null(.arf_tibble_rows)) {
+      .arf_previous_options <- options(pillar.print_max = .arf_tibble_rows, pillar.print_min = .arf_tibble_rows)
+    }
     grDevices::png(%s, width = %d, height = %d, units = "px", res = %d)
     .arf_device <- grDevices::dev.cur()
     withCallingHandlers({
@@ -48,6 +53,7 @@ local({
       }
     }, message = .arf_record_message)
   }, finally = {
+    if (!is.null(.arf_previous_options)) options(.arf_previous_options)
     tryCatch({
       if (!is.null(.arf_device) && .arf_device %%in%% grDevices::dev.list()) grDevices::dev.off(.arf_device)
     }, finally = {
@@ -76,6 +82,7 @@ local({
 		vim.json.encode(dir .. "/stdout.bin"),
 		vim.json.encode(dir .. "/stderr.bin"),
 		vim.json.encode(dir .. "/messages.bin"),
+		config.tibble_max_rows and tostring(config.tibble_max_rows) or "NULL",
 		vim.json.encode(dir .. "/plot-%09d.png"),
 		config.plot_width,
 		config.plot_height,

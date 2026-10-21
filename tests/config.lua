@@ -7,6 +7,11 @@ arf.setup({ output_max_height = 12 })
 assert(arf.config.output_width == 70 and arf.config.output_max_height == 12, "merge repeated setup")
 assert(arf.config.signs.success.text == "✓" and arf.config.signs.success.hl == defaults.signs.success.hl)
 assert(vim.deep_equal(defaults.signs.running, arf.config.signs.running), "preserve nested defaults")
+assert(defaults.tibble_max_rows == false)
+arf.setup({ tibble_max_rows = 100 })
+assert(arf.config.tibble_max_rows == 100)
+arf.setup({ tibble_max_rows = false })
+assert(arf.config.tibble_max_rows == false)
 local function reject(opts)
 	local before = vim.deepcopy(arf.config)
 	assert(not pcall(arf.setup, opts), "reject " .. vim.inspect(opts))
@@ -29,6 +34,9 @@ for _, key in ipairs({
 	for _, value in ipairs({ 0, -1, 1.5, math.huge, "2", false }) do
 		reject({ [key] = value })
 	end
+end
+for _, value in ipairs({ 0, -1, 1.5, math.huge, "100", true, {} }) do
+	reject({ tibble_max_rows = value })
 end
 for _, signs in ipairs({
 	{ enabled = "yes" },

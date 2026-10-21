@@ -87,5 +87,47 @@ check(
 	result == nil and failure:find("cannot spawn") and vim.fn.isdirectory(dir) == 0,
 	"spawn exception releases captures"
 )
+-- Execute the generated R wrapper directly to verify scoped options and tibble output.
+if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
+	vim.system = function(argv, opts, callback)
+		options = opts
+		dir = vim.json.decode(assert(opts.stdin:match('%.arf_stdout_path <%- ("[^"]+")'))):gsub("/stdout.bin$", "")
+		return { kill = function() end }
+	end
+	local function rcheck(source, rows, assertions)
+		local settings = vim.tbl_extend("force", config, { output_max_bytes = 1048576, tibble_max_rows = rows })
+		executor.eval(source, settings, function() end)
+		local code = table.concat({
+			"options(pillar.print_max = 7, pillar.print_min = NULL)",
+			'old <- options()[c("pillar.print_max", "pillar.print_min")]',
+			"captured <- capture.output(tryCatch({",
+			options.stdin,
+			"}, error = function(e) NULL))",
+			'stopifnot(identical(options()[c("pillar.print_max", "pillar.print_min")], old))',
+			assertions or "",
+		}, "\n")
+		local reply = original({ "Rscript", "--vanilla", "-" }, { text = true, stdin = code }):wait(30000)
+		vim.fn.delete(dir, "rf")
+		check(reply.code == 0, "R wrapper behavior: " .. reply.stderr)
+	end
+	rcheck('stopifnot(getOption("pillar.print_max") == 100, getOption("pillar.print_min") == 100)', 100)
+	rcheck('stop("expected")', 100)
+	rcheck('stopifnot(getOption("pillar.print_max") == 7, is.null(getOption("pillar.print_min")))', false)
+	rcheck(
+		'if (requireNamespace("tibble", quietly = TRUE)) tibble::tibble(x = seq_len(32))',
+		100,
+		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("32 +32", captured)), !any(grepl("more rows", captured)))'
+	)
+	rcheck(
+		'if (requireNamespace("tibble", quietly = TRUE)) tibble::tibble(x = seq_len(120))',
+		100,
+		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("100 +100", captured)), any(grepl("20 more rows", captured)))'
+	)
+	rcheck(
+		'if (requireNamespace("tibble", quietly = TRUE)) print(tibble::tibble(x = seq_len(32)), n = 2)',
+		100,
+		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("30 more rows", captured)))'
+	)
+end
 vim.system = original
 print("executor tests passed (" .. checks .. " checks)")
