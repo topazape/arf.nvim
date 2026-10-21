@@ -12,6 +12,7 @@ M.config = {
 	plot_res = 180,
 	inspect_width = 120,
 	inspect_max_height = 20,
+	tibble_max_rows = false,
 	output_max_lines = 20,
 	output_max_bytes = 1048576,
 	output_width = 120,
@@ -57,6 +58,16 @@ function M.setup(opts)
 			"arf: " .. key .. " must be a positive integer"
 		)
 	end
+	assert(
+		config.tibble_max_rows == false
+			or (
+				type(config.tibble_max_rows) == "number"
+				and config.tibble_max_rows > 0
+				and config.tibble_max_rows < math.huge
+				and config.tibble_max_rows == math.floor(config.tibble_max_rows)
+			),
+		"arf: tibble_max_rows must be false or a positive integer"
+	)
 	require("arf.signs").validate(config.signs)
 	M.config = config
 	require("arf.highlights").apply(config.theme)

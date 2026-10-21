@@ -17,7 +17,7 @@ A Neovim plugin powered by [arf](https://github.com/eitsupi/arf). Run expression
 - **Run expressions or the whole buffer** — Tree-sitter identifies pipelines, ggplot expressions, function definitions, and more. Visual selections and explicit line ranges work too.
 - **Inline results** — Display text and plots below the code, stacking multiple images in generation order and keeping results from other ranges.
 - **Persistent R session** — Start a session automatically on first execution and reuse objects across runs.
-- **Inspect saved output** — Open output and errors in a searchable, copyable floating window.
+- **Read longer output** — Keep inline previews short, then search and copy the rest with `ArfOutput`. Configure how many tibble rows to print.
 - **Object inspection** — Call `summary()` or another R function on the object under the cursor.
 - **Execution signs** — An animated spinner, success and error icons, and configurable symbols and colors.
 
@@ -90,11 +90,19 @@ model <- lm(mpg ~ wt, data = x)
 plot(model)
 ```
 
-Run `x <- mtcars` first, then `head(x)` or `plot(...)`. Place the cursor on `x` and press `<LocalLeader>fk` to open its summary; press `q` to close the float.
+Assignments normally produce no text output. Run `x <- mtcars` first, then `head(x)` or `plot(...)`. Place the cursor on `x` and press `<LocalLeader>fk` to open its summary; press `q` to close the float.
 
 Run `model <- ...` followed by `plot(model)` to display four diagnostic plots vertically.
 
 Unless `pid` selects an external session, `arf headless` starts automatically on the first evaluation; no manual session startup is needed. To run the whole buffer, press `<LocalLeader>fR` or use `:ArfRunAll`.
+
+### Read longer output
+
+When you see `… more lines (view with :ArfOutput)` inline, place the cursor within the executed code range and press `<LocalLeader>fo` or run `:ArfOutput`. Use normal Neovim motions to scroll, `/` to search, `yy` or Visual selection followed by `y` to copy, and `q` to close. Use `zl` / `zh` to scroll horizontally through long lines.
+
+`ArfOutput` opens saved text, so you can revisit a result without repeating the computation. Rows or columns omitted by R itself are absent from that text. To expand a tibble's `22 more rows`, for example, change the [output settings](#output-and-floats) and run the expression again.
+
+Use `:ArfClear` to tidy the current buffer while keeping R objects available for the next expression. To start over with fresh objects, use `:ArfStop` to end the automatically started session, then rerun the expressions you need in order. Manage termination separately for an external session selected with `pid`.
 
 ### Keymaps
 
@@ -116,10 +124,10 @@ These commands are available directly; the keys shown are configured by the Inst
 | --- | --- | --- |
 | `:ArfRun` | `<LocalLeader>fr` | Run the current expression in Normal mode or complete selected lines in Visual mode. Use `:3,5ArfRun` to run complete lines in an explicit range. |
 | `:ArfRunAll` | `<LocalLeader>fR` | Run every top-level expression in the current buffer in order, displaying results below each expression. |
-| `:ArfClear` | `<LocalLeader>fc` | Remove output, images, and signs from the current buffer. |
+| `:ArfClear` | `<LocalLeader>fc` | Remove output, images, and signs from the current buffer; keep R objects. |
 | `:ArfSummary` | `<LocalLeader>fk` | Call `base::summary()` on the object under the cursor and show it in a float. |
 | `:ArfOutput` | `<LocalLeader>fo` | Open saved output for the execution range under the cursor without evaluating R again. Search with `/` and copy with `y`. |
-| `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. |
+| `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. With an explicit `pid`, warn without changing anything. |
 
 ### Object inspection
 
@@ -138,6 +146,8 @@ To call an R function on the object under the cursor and show its text output in
   desc = "Inspect model performance",
 },
 ```
+
+Run the expression that creates the object first, then place the cursor on its name.
 
 Object inspection (including summary) resolves the name under the cursor (including dots) in the global environment and inherited environments. It does not evaluate member/index expressions or whole names containing spaces/operators: on `column` in `df$column`, it looks up a separate object named `column`.
 
@@ -163,7 +173,7 @@ The default title for `{ r = ... }` is `inspect(object)`. Supply trusted R code.
 
 - Automatic selection requires a syntactically complete buffer. Inside a function or loop, it selects the whole definition or loop; expressions sharing a line are selected by cursor position. Blank lines and comments outside expressions have nothing to run.
 - `ArfRunAll` runs top-level expressions in the existing session, stopping at the first R error or IPC failure. Completed results and existing results not reached remain. `:%ArfRun` evaluates the buffer as one range, with combined output at the end.
-- Results appear below the executed range. Overlapping runs replace results; edits inside a completed range remove them.
+- Results appear below the executed range. Overlapping runs replace results; edits inside a completed range remove them. Other ranges do not update automatically: rerun dependent expressions after changing data or variables.
 - Editing, clearing, or unloading the source buffer while evaluation is pending discards its result and stops subsequent expressions, without interrupting R.
 - All buffers in a Neovim instance share one R session. Automatically started sessions use `:pwd` at the first evaluation; later `:cd` changes do not affect R. External sessions retain their existing working directory. Neovim exits stop only automatically started sessions.
 
@@ -198,6 +208,7 @@ require("arf").setup({
   inspect_max_height = 20,    -- Maximum rows; shrinks for short output
 
   -- Output display and retention
+  tibble_max_rows = false,    -- Set a positive integer to override tibble row printing
   output_max_lines = 20,      -- Inline body lines, excluding notices and images
   output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
   output_width = 120,         -- Saved-output float width in columns
@@ -239,20 +250,30 @@ PNG settings must be positive integers; re-run after changing them. `plot_res` a
 
 ### Output and floats
 
-| Option | Description |
-| --- | --- |
-| `output_max_lines` | maximum inline body lines; defaults to 20. An omission notice indicates remaining lines. Notices, the separator, and images do not count toward this limit. |
-| `output_max_bytes` | total retained stdout, stderr, and error text per run; defaults to 1 MiB. Excess text is discarded with a notice. Images do not count toward this limit. |
-| `output_width` / `output_max_height` | saved-output float width and maximum height. |
-| `inspect_width` / `inspect_max_height` | width and maximum height for all inspection floats, including summary. |
+To keep a short preview beside your code and read the details when needed, set these options in your lazy.nvim spec:
 
-Use positive integers. Floats fit the screen and shrink vertically for short output. `:ArfOutput` shows all retained text; images appear only inline.
+```lua
+opts = {
+  tibble_max_rows = 100,
+  output_max_lines = 20,
+}
+```
 
-Notifications and omission notices are in English; R output follows R's language settings.
+For a 32-row tibble, this generates text for all 32 rows and shows the first 20 lines inline. Open `:ArfOutput` from the executed range to read the remaining text, including headers. Tibbles with more than 100 rows print their first 100 rows. If the retention limit is reached, only the retained portion is available.
 
-- `output_max_lines` applies on the next refresh; `output_max_bytes` requires re-evaluation; float dimensions require reopening.
-- Retention limits apply to each run-all expression and each inspection. Inspection floats include truncation notices.
-- Discarded text and removed results cannot be recovered. Limits do not cap R computation, memory, or temporary capture files.
+Choose a setting based on the omission notice you see:
+
+- **Read beyond the inline preview:** open `:ArfOutput`. Increase `output_max_lines` (default 20) to show more beside the code. Separators, notices, and images do not count toward this limit.
+- **Show more tibble rows:** set `tibble_max_rows` to a positive integer and rerun. Its default, `false`, preserves R's printing settings. For a single expression, use `print(df, n = 100)` in R instead; an explicit `n` takes precedence.
+- **Show omitted tibble columns:** `tibble_max_rows` controls rows only. Use an expression such as `print(df, n = 100, width = Inf)`, then scroll horizontally in the float.
+- **Recover output marked `Output exceeding the retention limit has been omitted`:** increase `output_max_bytes` (default 1048576, or 1 MiB) and rerun. Reopening a float cannot recover discarded text.
+- **Make a float larger:** change `output_width` / `output_max_height` for saved output, or `inspect_width` / `inspect_max_height` for summary and other inspections, then reopen it. Floats fit the screen and shrink vertically for short output. Images appear only inline.
+
+The numeric settings above other than `tibble_max_rows` require positive integers. `output_max_lines` applies on the next display refresh. Changes to `tibble_max_rows` and `output_max_bytes` require re-evaluation.
+
+The retention limit covers combined stdout, stderr, and error text per evaluation: each expression in `ArfRunAll` and each inspection gets its own limit. Images are excluded. This setting does not limit R computation, memory, or temporary capture files.
+
+`tibble_max_rows` also applies to object inspections. It temporarily sets `pillar.print_max` and `pillar.print_min`, restoring both after evaluation, including errors. Changes to those options made by the evaluated R code are also reset to their pre-evaluation values. Notifications and omission notices are in English; R output follows R's language settings.
 
 ### Signs
 
@@ -345,9 +366,9 @@ Repeated `setup()` calls switch themes immediately. All themes preserve custom `
 | `ArfSignSuccess` | success sign | `DiagnosticOk` |
 | `ArfSignError` | error sign | `DiagnosticError` |
 
-Colors come from standard colorscheme groups. When RGB foreground or background is unavailable, output links to its source group and the separator links to `NonText`.
+In the `"auto"` theme, colors come from standard colorscheme groups. When RGB foreground or background is unavailable, output links to its source group and the separator links to `NonText`.
 
-Defaults are reapplied on colorscheme changes without overwriting existing definitions. To set your own colors:
+On colorscheme changes, the selected theme defaults are reapplied while preserving `Arf*` definitions supplied by you or the colorscheme. To set your own colors:
 
 ```lua
 local function arf_colors()
@@ -372,7 +393,10 @@ Image placeholders use colors managed by Snacks. arf float colors apply only to 
 - **No image appears:** run `:checkhealth snacks` to check dependencies and terminal detection. `:echo executable('magick')` or `:echo executable('identify')` returns `1` when the command is available.
 - **An expression will not run:** check the R Tree-sitter parser and buffer syntax. Visual selections and `:3,5ArfRun` work without a parser.
 - **Keymaps do not work:** check that you added the `keys` configuration, that the buffer filetype is `r`, and that `maplocalleader` is set before the keymaps are registered.
-- **A computation will not finish:** `:ArfStop` terminates the automatically started session. Its R objects will be lost.
+- **Output is missing:** place the cursor within the executed code range and open `:ArfOutput`. For tibble omissions or discarded output, change the [output settings](#output-and-floats) and rerun.
+- **`object not found`:** run the expression that creates the variable first. A session started after `:ArfStop` has none of the previous session's objects.
+- **A relative file path fails:** run `getwd()` in R. Neovim's `:cd` does not change an existing R session's directory. Use `setwd()` in R, or use `:ArfStop` to end the automatically started session, change Neovim's directory, and rerun.
+- **A computation will not finish:** `:ArfStop` terminates the automatically started session. Its R objects will be lost. Stop an external session selected with `pid` from that session instead.
 
 ## Project philosophy
 
