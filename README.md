@@ -12,6 +12,10 @@ A Neovim plugin powered by [arf](https://github.com/eitsupi/arf). Run expression
 
 [Features](#features) · [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [API](#api) · [Highlights](#highlights) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="R code, inline tibble output, and a ggplot scatter plot in Neovim with arf.nvim" width="720">
+</p>
+
 ## Features
 
 - **Run expressions or the whole buffer** — Tree-sitter identifies pipelines, ggplot expressions, function definitions, and more. Visual selections and explicit line ranges work too.

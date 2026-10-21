@@ -13,6 +13,10 @@
 
 [Features](#features) · [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [API](#api) · [Highlights](#highlights) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="arf.nvim で R コード、tibble の出力、ggplot の散布図を Neovim 内に表示" width="720">
+</p>
+
 ## Features
 
 - **式単位・バッファ全体を実行** — Tree-sitter でパイプ・ggplot・関数定義の範囲を判定。Visual 選択・行範囲にも対応。
