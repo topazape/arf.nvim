@@ -3,6 +3,7 @@ local window, owner
 local ns = vim.api.nvim_create_namespace("arf.float")
 local float_highlights = {
 	ArfOutput = "ArfFloatOutput",
+	ArfOutputStale = "ArfFloatOutputStale",
 	ArfMessage = "ArfFloatMessage",
 	ArfStderr = "ArfFloatStderr",
 	ArfError = "ArfFloatError",

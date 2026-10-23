@@ -150,6 +150,18 @@ function M.lines(result, limit)
 	return lines, total
 end
 
+-- Only remap normal text; preserve message, warning and error semantics.
+function M.stale(lines)
+	for _, line in ipairs(lines) do
+		for _, chunk in ipairs(line) do
+			if chunk[2] == "ArfOutput" then
+				chunk[2] = "ArfOutputStale"
+			end
+		end
+	end
+	return lines
+end
+
 function M.full_lines(result)
 	local lines = M.lines(result)
 	if result.truncated then

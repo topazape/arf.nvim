@@ -240,6 +240,7 @@ end
 
 function M.output()
 	local buf = vim.api.nvim_get_current_buf()
+	require("arf.results").sync_ranges(buf)
 	local row = vim.api.nvim_win_get_cursor(0)[1] - 1
 	local state = require("arf.results").all()[buf]
 	for _, entry in ipairs(state and state.entries or {}) do
@@ -247,7 +248,11 @@ function M.output()
 			if entry.running then
 				return vim.notify("arf: R is running", vim.log.levels.WARN)
 			end
-			return require("arf.float").open("arf output", require("arf.output").full_lines(entry.result), {
+			local lines = require("arf.output").full_lines(entry.result)
+			if entry.stale then
+				require("arf.output").stale(lines)
+			end
+			return require("arf.float").open("arf output", lines, {
 				width = M.config.output_width,
 				max_height = M.config.output_max_height,
 				owner = buf,

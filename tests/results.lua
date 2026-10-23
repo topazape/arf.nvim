@@ -53,14 +53,16 @@ local function disposed(buf, entry, resources)
 	end
 end
 
--- Insertions at the start move the range; insertions inside invalidate it.
+-- Insertions at the start move the range; edits inside retain stale output.
 for _, row in ipairs({ 0, 2, 3, 4 }) do
 	local buf = buffer()
 	local entry, resources = put(buf, 2, 3)
 	vim.api.nvim_buf_set_lines(buf, row, row, false, { "inserted" })
 	if row == 3 then
-		check(#results.all()[buf].entries == 0, "insertion inside invalidates")
-		disposed(buf, entry, resources)
+		check(#results.all()[buf].entries == 1 and entry.stale, "insertion inside retains stale result")
+		check(entry.first == 2 and entry.last == 4, "insertion extends range")
+		check(resources.cleaned == 0 and #entry.signs == 0, "retain resources and clear execution signs")
+		check(#vim.api.nvim_buf_get_extmarks(buf, signs.namespace, 0, -1, {}) == 0, "remove success and range signs")
 	else
 		local shift = row <= 2 and 1 or 0
 		check(entry.first == 2 + shift and entry.last == 3 + shift, "insertion boundary moves range correctly")
@@ -78,11 +80,52 @@ for _, row in ipairs({ 1, 2, 3, 4 }) do
 	local entry, resources = put(buf, 2, 3)
 	vim.api.nvim_buf_set_lines(buf, row, row + 1, false, {})
 	if row == 2 or row == 3 then
-		disposed(buf, entry, resources)
+		check(entry.stale and entry.first == 2 and entry.last == 2, "partial deletion retains stale result")
+		check(resources.cleaned == 0, "partial deletion keeps resources")
 	else
 		check(entry.first == (row == 1 and 1 or 2), "deletion before moves range; deletion after keeps it")
 		check(resources.cleaned == 0, "deletion outside keeps result")
 	end
+	vim.api.nvim_buf_delete(buf, { force = true })
+end
+-- Repeated edits retain resources; rerunning replaces stale output.
+do
+	local buf = buffer()
+	local entry, resources = put(buf, 1, 2)
+	vim.api.nvim_buf_set_lines(buf, 1, 3, false, { "replacement" })
+	check(entry.stale and entry.first == 1 and entry.last == 1, "replacement keeps an anchor")
+	vim.api.nvim_buf_set_text(buf, 1, 0, 1, 1, { "changed" })
+	check(resources.cleaned == 0, "repeated edit preserves result")
+	local fresh = put(buf, 1, 1)
+	disposed(buf, entry, resources)
+	check(not fresh.stale, "rerun resets stale status")
+	vim.api.nvim_buf_delete(buf, { force = true })
+end
+-- Deleting the entire source removes its result, including at EOF.
+do
+	local buf = buffer()
+	local entry, resources = put(buf, 4, 5)
+	vim.api.nvim_buf_set_lines(buf, 4, 6, false, {})
+	disposed(buf, entry, resources)
+	check(#results.all()[buf].entries == 0, "full deletion removes result")
+	vim.api.nvim_buf_delete(buf, { force = true })
+end
+-- Failed results also lose their execution signs after edits.
+do
+	local buf = buffer()
+	local entry = results.put(buf, 1, 2, { text = "", error = "failure", cleanup = function() end })
+	vim.api.nvim_buf_set_lines(buf, 1, 3, false, { "changed" })
+	local marks = vim.api.nvim_buf_get_extmarks(buf, signs.namespace, 0, -1, { details = true })
+	check(entry.stale and #marks == 0 and #entry.signs == 0, "replacement removes error and range signs")
+	vim.api.nvim_buf_delete(buf, { force = true })
+end
+-- Running output is still discarded on source edits.
+do
+	local buf = buffer()
+	local entry = results.start(buf, 1, 2)
+	local timer = entry.signs.timer
+	vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "edited" })
+	check(#results.all()[buf].entries == 0 and timer:is_closing(), "edit cancels running entry and timer")
 	vim.api.nvim_buf_delete(buf, { force = true })
 end
 local buf = buffer()
@@ -119,4 +162,27 @@ check(
 )
 vim.api.nvim_buf_delete(buf, { force = true })
 check(results.all()[buf] == nil, "detach removes buffer state")
+if vim.env.ARF_TEST_MODE ~= "unit" then
+	local buf = buffer()
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "df |> head()" })
+	local expressions, err = require("arf.expression").all(buf)
+	if expressions then
+		local entry, resources = put(buf, 0, 0)
+		vim.api.nvim_buf_set_lines(buf, 0, 1, false, { "df |> head() |>" })
+		results.sync_ranges(buf)
+		check(entry.stale and entry.last == 0 and resources.cleaned == 0, "incomplete pipe retains result")
+		vim.api.nvim_buf_set_lines(buf, 1, 1, false, { "  transform(", "    total = 1", "  )" })
+		results.sync_ranges(buf)
+		check(entry.last == 3 and resources.cleaned == 0, "real R parser follows completed pipeline")
+		vim.api.nvim_buf_set_lines(buf, 4, 4, false, { "print(df)" })
+		results.sync_ranges(buf)
+		check(entry.last == 3, "separate expression does not extend range")
+		vim.api.nvim_buf_set_lines(buf, 0, 4, false, {})
+		disposed(buf, entry, resources)
+	else
+		assert(err:find("parser"), err)
+		print("R parser unavailable; range integration skipped")
+	end
+	vim.api.nvim_buf_delete(buf, { force = true })
+end
 print("results tests passed (" .. checks .. " checks)")
