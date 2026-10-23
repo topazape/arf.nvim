@@ -102,6 +102,7 @@ end
 local function apply_palette(palette)
 	local definitions = {
 		ArfOutput = { fg = palette.output },
+		ArfOutputStale = { fg = blend(palette.output, palette.float_bg, 0.55) },
 		ArfSeparator = { fg = palette.separator },
 		ArfMessage = { fg = palette.info },
 		ArfStderr = { fg = palette.warning },
@@ -109,6 +110,7 @@ local function apply_palette(palette)
 		ArfWarning = { fg = palette.warning },
 		ArfFloatNormal = { fg = palette.fg, bg = palette.float_bg },
 		ArfFloatOutput = { fg = palette.float_fg, bg = palette.float_bg },
+		ArfFloatOutputStale = { fg = blend(palette.float_fg, palette.float_bg, 0.55), bg = palette.float_bg },
 		ArfFloatMessage = { fg = palette.info, bg = palette.float_bg },
 		ArfFloatStderr = { fg = palette.warning, bg = palette.float_bg },
 		ArfFloatError = { fg = palette.error, bg = palette.float_bg },
@@ -137,9 +139,11 @@ function M.apply(selected_theme)
 	end
 	-- Defaults leave definitions supplied by a colorscheme or user intact.
 	blended_default("ArfOutput", "Normal", 0.85)
+	blended_default("ArfOutputStale", "Normal", 0.5, "Comment")
 	blended_default("ArfSeparator", "Normal", 0.25, "NonText")
 	set_default("ArfFloatNormal", { link = "NormalFloat" })
 	blended_default("ArfFloatOutput", "ArfFloatNormal", 0.95)
+	blended_default("ArfFloatOutputStale", "ArfFloatNormal", 0.5, "Comment")
 	local links = {
 		ArfFloatBorder = "FloatBorder",
 		ArfFloatTitle = "FloatTitle",

@@ -27,6 +27,7 @@ local function draw()
 	local available, reason
 	for buf, state in pairs(require("arf.results").all()) do
 		if vim.api.nvim_buf_is_loaded(buf) then
+			require("arf.results").sync_ranges(buf)
 			-- Shared virtual lines use the widest text area; narrower windows clip them.
 			local width = 1
 			for _, win in ipairs(vim.fn.win_findbuf(buf)) do
@@ -37,6 +38,9 @@ local function draw()
 			end
 			for _, entry in ipairs(state.entries) do
 				local lines = require("arf.output").preview(entry.result)
+				if entry.stale then
+					require("arf.output").stale(lines)
+				end
 				if entry.result.paths and #entry.result.paths > 0 then
 					if available == nil then
 						local ok, value, message = pcall(backend.available)

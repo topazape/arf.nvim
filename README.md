@@ -102,11 +102,11 @@ Unless `pid` selects an external session, `arf headless` starts automatically on
 
 ### Read longer output
 
-When you see `… more lines (view with :ArfOutput)` inline, place the cursor within the executed code range and press `<LocalLeader>fo` or run `:ArfOutput`. Use normal Neovim motions to scroll, `/` to search, `yy` or Visual selection followed by `y` to copy, and `q` to close. Use `zl` / `zh` to scroll horizontally through long lines.
+Place the cursor within an executed range and press `<LocalLeader>fo` or run `:ArfOutput` to open saved text without recomputing. Use `/` to search, `y` to copy, `zl` / `zh` to scroll horizontally, and `q` to close.
 
-`ArfOutput` opens saved text, so you can revisit a result without repeating the computation. Rows or columns omitted by R itself are absent from that text. To expand a tibble's `22 more rows`, for example, change the [output settings](#output-and-floats) and run the expression again.
+Rows or columns omitted by R and text exceeding the retention limit are unavailable. Change the [output settings](#output-and-floats) and rerun to include them.
 
-Use `:ArfClear` to tidy the current buffer while keeping R objects available for the next expression. To start over with fresh objects, use `:ArfStop` to end the automatically started session, then rerun the expressions you need in order. Manage termination separately for an external session selected with `pid`.
+`:ArfClear` removes displayed results but keeps R objects. To start fresh, use `:ArfStop` to end the automatically started session, then rerun the expressions you need. End external sessions separately.
 
 ### Keymaps
 
@@ -118,7 +118,7 @@ The plugin does not register R buffer keymaps automatically. The Installation ex
 vim.g.maplocalleader = "," -- ,fr to run, ,fc to clear
 ```
 
-Customize the lazy.nvim `keys` entries in Installation or use `vim.keymap.set()`. The Visual mapping uses `:ArfRun<CR>` to pass complete selected lines. Press `q` to close a float.
+Customize the lazy.nvim `keys` entries in Installation or use `vim.keymap.set()`. The Visual mapping uses `:ArfRun<CR>` to pass complete selected lines.
 
 ### Commands
 
@@ -130,7 +130,7 @@ These commands are available directly; the keys shown are configured by the Inst
 | `:ArfRunAll` | `<LocalLeader>fR` | Run every top-level expression in the current buffer in order, displaying results below each expression. |
 | `:ArfClear` | `<LocalLeader>fc` | Remove output, images, and signs from the current buffer; keep R objects. |
 | `:ArfSummary` | `<LocalLeader>fk` | Call `base::summary()` on the object under the cursor and show it in a float. |
-| `:ArfOutput` | `<LocalLeader>fo` | Open saved output for the execution range under the cursor without evaluating R again. Search with `/` and copy with `y`. |
+| `:ArfOutput` | `<LocalLeader>fo` | Open saved output for the execution range under the cursor without evaluating R again. |
 | `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. With an explicit `pid`, warn without changing anything. |
 
 ### Object inspection
@@ -159,7 +159,7 @@ Object inspection (including summary) resolves the name under the cursor (includ
 
 `title` is optional and defaults to `function(object)` (or `summary(object)` for `base::summary`).
 
-The function receives one argument: the object under the cursor. Embed an anonymous R function in Lua to supply extra arguments. It is evaluated in the R session on each call, without prior registration. Syntax and runtime errors appear in the float.
+The function receives the object under the cursor as its only argument. Use an anonymous R function to supply extra arguments. Errors appear in the float.
 
 ```lua
 require("arf").inspect({
@@ -177,7 +177,7 @@ The default title for `{ r = ... }` is `inspect(object)`. Supply trusted R code.
 
 - Automatic selection requires a syntactically complete buffer. Inside a function or loop, it selects the whole definition or loop; expressions sharing a line are selected by cursor position. Blank lines and comments outside expressions have nothing to run.
 - `ArfRunAll` runs top-level expressions in the existing session, stopping at the first R error or IPC failure. Completed results and existing results not reached remain. `:%ArfRun` evaluates the buffer as one range, with combined output at the end.
-- Results appear below the executed range. Overlapping runs replace results; edits inside a completed range remove them. Other ranges do not update automatically: rerun dependent expressions after changing data or variables.
+- Results appear below the executed range. Editing keeps the previous output dimmed and removes execution signs. Rerunning replaces the result; deleting the entire range removes it. Other ranges do not update automatically: rerun dependent expressions after changing data or variables.
 - Editing, clearing, or unloading the source buffer while evaluation is pending discards its result and stops subsequent expressions, without interrupting R.
 - All buffers in a Neovim instance share one R session. Automatically started sessions use `:pwd` at the first evaluation; later `:cd` changes do not affect R. External sessions retain their existing working directory. Neovim exits stop only automatically started sessions.
 
@@ -246,15 +246,13 @@ require("arf").setup({
 
 ### Plots
 
-All plots from an evaluation are displayed vertically in generation order (for example, `plot(lm(mpg ~ wt, data = mtcars))`). Each image uses the configured size limits.
+Plots are stacked in generation order. `image_width` / `image_height` cap each image's display size in cells; `plot_width` / `plot_height` / `plot_res` set PNG dimensions in pixels and resolution in dpi. The window also constrains display size.
 
-`image_width` / `image_height` cap display size in cells; `plot_width` / `plot_height` / `plot_res` set PNG dimensions in pixels and resolution in dpi. Window size also constrains placement.
-
-PNG settings must be positive integers; re-run after changing them. `plot_res` affects text and line sizes. Increasing pixels and DPI proportionally may improve sharpness without enlarging the display.
+PNG settings require positive integers and re-evaluation. Increasing pixels and DPI proportionally may improve sharpness while preserving displayed text and line sizes.
 
 ### Output and floats
 
-To keep a short preview beside your code and read the details when needed, set these options in your lazy.nvim spec:
+Set R's printed row count and the inline preview length separately in your lazy.nvim `opts`:
 
 ```lua
 opts = {
@@ -263,27 +261,20 @@ opts = {
 }
 ```
 
-For a 32-row tibble, this generates text for all 32 rows and shows the first 20 lines inline. Open `:ArfOutput` from the executed range to read the remaining text, including headers. Tibbles with more than 100 rows print their first 100 rows. If the retention limit is reached, only the retained portion is available.
+This prints up to 100 tibble rows and shows the first 20 lines inline. Read the rest with `:ArfOutput`.
 
-Choose a setting based on the omission notice you see:
+- `output_max_lines`: inline body lines, excluding separators, notices, and images.
+- `tibble_max_rows`: maximum tibble rows to print. The default `false` preserves R's settings. For individual expressions, use `print(df, n = 100)` or `print(df, n = 100, width = Inf)` to include omitted columns too. An explicit `n` takes precedence.
+- `output_max_bytes`: retained text per evaluation (default 1 MiB), including stdout, stderr, and errors but excluding images. If a retention-limit notice appears, increase it and rerun. This does not limit R's memory usage.
+- `output_width` / `output_max_height`: saved-output float size. Use `inspect_width` / `inspect_max_height` for summary and other inspections. Floats fit the screen and shrink vertically for short output. Images appear only inline.
 
-- **Read beyond the inline preview:** open `:ArfOutput`. Increase `output_max_lines` (default 20) to show more beside the code. Separators, notices, and images do not count toward this limit.
-- **Show more tibble rows:** set `tibble_max_rows` to a positive integer and rerun. Its default, `false`, preserves R's printing settings. For a single expression, use `print(df, n = 100)` in R instead; an explicit `n` takes precedence.
-- **Show omitted tibble columns:** `tibble_max_rows` controls rows only. Use an expression such as `print(df, n = 100, width = Inf)`, then scroll horizontally in the float.
-- **Recover output marked `Output exceeding the retention limit has been omitted`:** increase `output_max_bytes` (default 1048576, or 1 MiB) and rerun. Reopening a float cannot recover discarded text.
-- **Make a float larger:** change `output_width` / `output_max_height` for saved output, or `inspect_width` / `inspect_max_height` for summary and other inspections, then reopen it. Floats fit the screen and shrink vertically for short output. Images appear only inline.
+Numeric values require positive integers. `output_max_lines` applies on the next display refresh; float sizes apply when reopened. Changes to `tibble_max_rows` and `output_max_bytes` require re-evaluation.
 
-The numeric settings above other than `tibble_max_rows` require positive integers. `output_max_lines` applies on the next display refresh. Changes to `tibble_max_rows` and `output_max_bytes` require re-evaluation.
-
-The retention limit covers combined stdout, stderr, and error text per evaluation: each expression in `ArfRunAll` and each inspection gets its own limit. Images are excluded. This setting does not limit R computation, memory, or temporary capture files.
-
-`tibble_max_rows` also applies to object inspections. It temporarily sets `pillar.print_max` and `pillar.print_min`, restoring both after evaluation, including errors. Changes to those options made by the evaluated R code are also reset to their pre-evaluation values. Notifications and omission notices are in English; R output follows R's language settings.
+`tibble_max_rows` also applies to object inspections. It temporarily sets `pillar.print_max` / `pillar.print_min` and restores their previous values after evaluation, including changes made by the evaluated code.
 
 ### Signs
 
-Defaults are `│` for the range, `` for success, and `` for errors. Configure your terminal to use a Nerd Font. No `nvim-web-devicons` dependency is needed.
-
-Set each symbol directly through `signs.range.text`, `signs.success.text`, `signs.error.text`, or `signs.running.text`.
+Set symbols through `signs.range.text`, `signs.success.text`, `signs.error.text`, or `signs.running.text`. The default success and error icons require a Nerd Font.
 
 | Option | Description |
 | --- | --- |
@@ -307,9 +298,7 @@ require("arf").setup({
 })
 ```
 
-The spinner uses standard Unicode characters and updates only the last line of the running range. Its timer stops on completion, error, stop, clear, edits inside the range, or buffer deletion. Set `running.text = ""` to hide the final-line sign and disable its animation.
-
-Range markers always use `signs.range.hl`; only the final-line status uses `signs.running.hl` during execution. Configuration changes apply to subsequent runs. If signs are hidden, check `:set signcolumn=yes`.
+The spinner appears on the last line of the running range. Set `signs.running.text = ""` to hide it. Configuration changes apply to subsequent runs. If signs are hidden, check `:set signcolumn=yes`.
 
 ## API
 
@@ -337,9 +326,11 @@ R evaluation through `run`, `run_all`, `inspect`, and the `summary` shorthand is
 
 Output, floats, and signs use dedicated highlight groups. Select their defaults with `theme`:
 
-- `"default"` (default): use a neutral palette with charcoal/off-white float backgrounds, gray text and borders, and restrained blue, green, amber, and red status colors for all `Arf*` groups. Dark and light variants follow `background`. The editor's colorscheme is unchanged.
-- `"auto"`: use the current colorscheme's standard highlights, with output and separator contrast adjusted against the background.
-- `"neon"`: use a vivid neon palette with purple float backgrounds, lavender output, hot-pink borders and titles, cyan execution indicators, lime success, yellow warnings, and pink-red errors. Dark and light variants follow `background`; only arf highlights change.
+- `"default"` (default): a neutral gray palette with restrained status colors.
+- `"auto"`: follow the current colorscheme.
+- `"neon"`: purple backgrounds with vivid text and status colors.
+
+`default` and `neon` follow `background` for dark and light variants. Only arf highlights change.
 
 ```lua
 require("arf").setup({ theme = "default" })
@@ -351,11 +342,13 @@ Repeated `setup()` calls switch themes immediately. All themes preserve custom `
 | Group | Purpose | Auto theme default |
 | --- | --- | --- |
 | `ArfOutput` | normal output | `Normal` foreground blended with 15% background |
+| `ArfOutputStale` | normal output after editing its source | `Normal` foreground blended with 50% background; `Comment` fallback |
 | `ArfSeparator` | full-width rule before inline output | `Normal` foreground blended with 75% background |
 | `ArfMessage` | `message()` and package startup messages | `DiagnosticInfo` |
 | `ArfStderr` | other stderr, including warnings and direct writes | `DiagnosticWarn` |
 | `ArfFloatNormal` | inspection and output float text and background | `NormalFloat` |
 | `ArfFloatOutput` | normal output inside floats | float foreground blended with 5% float background |
+| `ArfFloatOutputStale` | normal saved output after editing its source | float foreground blended with 50% float background; `Comment` fallback |
 | `ArfFloatMessage` | messages inside floats | `ArfMessage` |
 | `ArfFloatStderr` | stderr inside floats | `ArfStderr` |
 | `ArfFloatError` | errors inside floats | `ArfError` |
@@ -372,7 +365,7 @@ Repeated `setup()` calls switch themes immediately. All themes preserve custom `
 
 In the `"auto"` theme, colors come from standard colorscheme groups. When RGB foreground or background is unavailable, output links to its source group and the separator links to `NonText`.
 
-On colorscheme changes, the selected theme defaults are reapplied while preserving `Arf*` definitions supplied by you or the colorscheme. To set your own colors:
+To set your own colors:
 
 ```lua
 local function arf_colors()
@@ -383,7 +376,7 @@ vim.api.nvim_create_autocmd("ColorScheme", { callback = arf_colors })
 arf_colors()
 ```
 
-Image placeholders use colors managed by Snacks. arf float colors apply only to those floats through `winhighlight`.
+Image placeholder colors are managed by Snacks.
 
 ## Limitations
 

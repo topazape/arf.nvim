@@ -102,6 +102,14 @@ check(
 	entry.plots[1].image.opts.pos[1] == 3 and entry.plots[1].image.opts.range[1] == 3,
 	"move placement after source edit before range"
 )
+vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "plot(x + 1)" })
+drain()
+check(entry.stale and created == 1 and closed == 0 and cleaned == 0, "source edit retains image and resources")
+check(
+	rendered()[2][1][1] == "text survives" and rendered()[2][1][2] == "ArfOutputStale",
+	"dim stale image text without adding lines"
+)
+check(rendered()[1][1][2] == "ArfSeparator", "stale output keeps normal separator color")
 results.clear(buf)
 drain()
 check(closed == 1 and cleaned == 1, "clear releases image and evaluation resources")
@@ -130,13 +138,54 @@ display.refresh()
 drain()
 check(#rendered() == 4, "refresh does not accumulate blank lines")
 check(
-	vim.deep_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), { "inserted", "x <- 1", "plot(x)" }),
+	vim.deep_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), { "inserted", "x <- 1", "plot(x + 1)" }),
 	"display spacing leaves source lines unchanged"
 )
 results.clear(buf)
 entry = results.put(buf, 1, 1, { text = "", cleanup = function() end })
 drain()
 check(#rendered() == 0, "empty output adds no spacing or separator")
+vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "x <- 2" })
+drain()
+check(entry.stale and #rendered() == 0, "empty stale output adds no lines")
+entry = results.put(buf, 1, 1, { text = "saved text", error = "failure", cleanup = function() end })
+drain()
+local previous_count = #rendered()
+-- Editing changes color without changing output text or row count.
+vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "x <- 3" })
+drain()
+check(entry.stale and #rendered() == previous_count, "stale output keeps row count")
+check(rendered()[2][1][1] == "saved text" and rendered()[2][1][2] == "ArfOutputStale", "dim stale text")
+check(rendered()[3][1][2] == "ArfError", "preserve error color")
+vim.api.nvim_win_set_cursor(0, { 2, 0 })
+local win = require("arf").output()
+local float_lines = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), 0, -1, false)
+check(float_lines[1] == "saved text" and #float_lines == 2, "saved output has no extra notice")
+local float_marks = vim.api.nvim_buf_get_extmarks(
+	vim.api.nvim_win_get_buf(win),
+	vim.api.nvim_create_namespace("arf.float"),
+	0,
+	-1,
+	{ details = true }
+)
+check(float_marks[1][4].hl_group == "ArfFloatOutputStale", "dim saved output in float")
+check(float_marks[2][4].hl_group == "ArfFloatError", "preserve float error color")
+require("arf.float").close()
+-- Parser-confirmed continuation moves the output below the extended pipeline.
+local original_expression = package.loaded["arf.expression"]
+package.loaded["arf.expression"] = {
+	all = function()
+		return { { first = 2, last = 3 } }
+	end,
+}
+vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "continuation" })
+drain()
+check(entry.last == 2 and rendered()[2][1][2] == "ArfOutputStale", "follow extended expression")
+check(vim.api.nvim_buf_get_extmark_by_id(buf, results.namespace, entry.mark, {})[1] == 2, "move output anchor")
+package.loaded["arf.expression"] = original_expression
+entry = results.put(buf, 1, 2, { text = "new result", cleanup = function() end })
+drain()
+check(rendered()[2][1][2] == "ArfOutput" and rendered()[1][1][2] == "ArfSeparator", "rerun restores normal colors")
 results.clear(buf)
 vim.api.nvim_buf_delete(buf, { force = true })
 print("display tests passed (" .. checks .. " checks)")

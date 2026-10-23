@@ -30,6 +30,34 @@ function M.clear(buf)
 	require("arf.display").refresh()
 end
 
+local function stale(buf, entry)
+	entry.stale = true
+	require("arf.signs").clear(buf, entry.signs)
+	entry.signs = {}
+end
+
+-- Parse outside on_lines (textlock), once per batch of edits. Incomplete code
+-- keeps its line-based anchor until the expression becomes valid again.
+function M.sync_ranges(buf)
+	local state = buffers[buf]
+	if not state or not state.dirty then
+		return
+	end
+	state.dirty = false
+	local expressions = require("arf.expression").all(buf)
+	for _, entry in ipairs(state.entries) do
+		if entry.stale then
+			for _, expression in ipairs(expressions or {}) do
+				if expression.first - 1 == entry.first and expression.last - 1 > entry.last then
+					entry.last = expression.last - 1
+					stale(buf, entry)
+					break
+				end
+			end
+		end
+	end
+end
+
 local function ensure(buf)
 	if buffers[buf] then
 		return buffers[buf]
@@ -39,15 +67,21 @@ local function ensure(buf)
 	vim.api.nvim_buf_attach(buf, false, {
 		on_lines = function(_, _, _, first, old_last, new_last)
 			local delta = new_last - old_last
+			state.dirty = true
 			local keep = {}
 			for _, entry in ipairs(state.entries) do
-				-- Insertions before the range move it; edits inside invalidate it.
 				local intersects = first <= entry.last and old_last > entry.first
 					or (first == old_last and first > entry.first and first <= entry.last)
-				if intersects then
+				local deleted = new_last == first and first <= entry.first and old_last > entry.last
+				if intersects and (entry.running or deleted) then
 					dispose(buf, entry)
 				else
-					if old_last <= entry.first then
+					if intersects then
+						entry.first = math.min(entry.first, first)
+						entry.last =
+							math.max(entry.first, entry.last >= old_last and entry.last + delta or new_last - 1)
+						stale(buf, entry)
+					elseif old_last <= entry.first then
 						entry.first = entry.first + delta
 						entry.last = entry.last + delta
 					end
