@@ -32,3 +32,7 @@ end, { desc = "Stop the owned arf session and clear all results" })
 vim.api.nvim_create_user_command("ArfOutput", function()
 	require("arf").output()
 end, { desc = "Open saved output for the execution under the cursor" })
+
+vim.api.nvim_create_user_command("ArfCopyPlot", function()
+	require("arf").copy_plot()
+end, { desc = "Copy the most recently generated saved plot to the clipboard" })

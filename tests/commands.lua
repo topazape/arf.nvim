@@ -1,7 +1,7 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local calls = {}
 local api = {}
-for _, name in ipairs({ "run", "run_all", "clear", "inspect", "stop", "output" }) do
+for _, name in ipairs({ "run", "run_all", "clear", "inspect", "stop", "output", "copy_plot" }) do
 	api[name] = function(...)
 		calls[#calls + 1] = { name, ... }
 	end
@@ -19,9 +19,10 @@ for _, case in ipairs({
 	{ "ArfSummary", { "inspect", "base::summary" } },
 	{ "ArfStop", { "stop" } },
 	{ "ArfOutput", { "output" } },
+	{ "ArfCopyPlot", { "copy_plot" } },
 }) do
 	vim.cmd(case[1])
 	assert(vim.deep_equal(calls[#calls], case[2]), case[1])
 end
-assert(#calls == 8, "one dispatch per command")
+assert(#calls == 9, "one dispatch per command")
 print("command tests passed")

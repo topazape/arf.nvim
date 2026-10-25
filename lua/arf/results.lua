@@ -1,6 +1,7 @@
 local M = {}
 local ns = vim.api.nvim_create_namespace("arf.results")
 local buffers, generations = {}, {}
+local serial = 0
 M.namespace = ns
 
 function M.generation(buf)
@@ -110,7 +111,9 @@ function M.put(buf, first, last, result, running)
 			keep[#keep + 1] = entry
 		end
 	end
+	serial = serial + 1
 	local entry = {
+		serial = serial,
 		first = first,
 		last = last,
 		result = result,
@@ -141,6 +144,19 @@ function M.cancel(buf, entry)
 			return
 		end
 	end
+end
+
+function M.latest_plot()
+	local path, latest = nil, 0
+	for _, state in pairs(buffers) do
+		for _, entry in ipairs(state.entries) do
+			local paths = entry.result.paths or {}
+			if #paths > 0 and entry.serial > latest then
+				path, latest = paths[#paths], entry.serial
+			end
+		end
+	end
+	return path
 end
 
 function M.all()

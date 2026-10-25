@@ -49,7 +49,7 @@ return {
   "topazape/arf.nvim",
   version = "*",
   ft = "r",
-  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfOutput", "ArfStop" },
+  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfOutput", "ArfCopyPlot", "ArfStop" },
   dependencies = {
     {
       "folke/snacks.nvim",
@@ -64,6 +64,7 @@ return {
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear R results" },
     { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Show saved R output" },
+    { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Show R object summary" },
   },
 }
@@ -131,7 +132,10 @@ These commands are available directly; the keys shown are configured by the Inst
 | `:ArfClear` | `<LocalLeader>fc` | Remove output, images, and signs from the current buffer; keep R objects. |
 | `:ArfSummary` | `<LocalLeader>fk` | Call `base::summary()` on the object under the cursor and show it in a float. |
 | `:ArfOutput` | `<LocalLeader>fo` | Open saved output for the execution range under the cursor without evaluating R again. |
+| `:ArfCopyPlot` | `<LocalLeader>fy` | Copy the most recently generated saved plot image to the clipboard. |
 | `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. With an explicit `pid`, warn without changing anything. |
+
+`:ArfCopyPlot` copies the last image from the most recently generated saved plot result across all buffers. It does not evaluate R again. Requires `osascript` on macOS, `wl-copy` (Wayland) or `xclip` (X11) on Linux, or PowerShell on Windows. Clearing or replacing results removes those plots from the copy candidates.
 
 ### Object inspection
 
@@ -213,7 +217,7 @@ require("arf").setup({
   inline_max_lines = 20,      -- Inline body lines, excluding notices and images
   output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
   -- Shared by ArfOutput and object inspections
-  float_width = "80%",       -- "auto", positive integer, or "1%" to "100%"
+  float_width = "60%",       -- "auto", positive integer, or "1%" to "100%"
   float_max_height = 30,     -- Maximum rows; shrinks for short output
 
   -- Execution signs
@@ -260,7 +264,7 @@ Settings now describe what they control. Update existing configurations:
 - `timeout` → `eval_timeout`
 - `tibble_width = math.huge` → `tibble_width = "all"`
 
-Old setting names produce an error naming their replacement. Tibble width defaults to `"auto"` and float width to `"80%"`. Both floats share a maximum height of 30 rows. Tibble row settings apply only to tibbles. Finite tibble widths also temporarily set R's `width`, which affects other printed output.
+Old setting names produce an error naming their replacement. Tibble width defaults to `"auto"` and float width to `"60%"`. Both floats share a maximum height of 30 rows. Tibble row settings apply only to tibbles. Finite tibble widths also temporarily set R's `width`, which affects other printed output.
 
 ### Output and floats
 
