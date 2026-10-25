@@ -20,7 +20,7 @@
 ## Features
 
 - **式単位・バッファ全体を実行** — Tree-sitter でパイプ・ggplot・関数定義の範囲を判定。Visual 選択・行範囲にも対応。
-- **インライン出力** — テキストとプロットをコード直下に表示。複数の画像は生成順に縦に並べ、別の範囲の結果も保持。
+- **インライン出力** — テキストとプロットをコード直下に表示。複数の画像は生成順に縦に並べ、別の範囲の結果も保持。直近のプロットはクリップボードにコピー可能。
 - **継続する R セッション** — 初回実行で自動起動。代入したオブジェクトを次の実行で利用。
 - **長い出力を読み返す** — コードの横では短く表示し、続きを `ArfOutput` で検索・コピー。tibble の出力行数も設定可能。
 - **オブジェクトを確認** — カーソル下のオブジェクトに `summary()` や指定した R 関数を実行。
@@ -29,15 +29,17 @@
 ## Requirements
 
 - **Neovim 0.12+**
-- **Nerd Font** — 既定の成功・エラーアイコンに使用。通常の Unicode 記号に変更する場合は不要です（[Signs](#signs)）。
 - **R と [arf](https://github.com/eitsupi/arf)** — arf の導入手順に従ってインストールし、`arf` を PATH に通してください。実行ファイルのパスも設定できます。arf 0.6.0 で検証済み。
 - **R の Tree-sitter パーサー** — `ArfRun` の通常モードの式判定と `ArfRunAll` に使用。利用中のパーサーマネージャーで `r` を導入してください。Visual 選択・明示的な行範囲の実行には不要です。
+- **Nerd Font** — 既定の成功・エラーアイコンに使用。通常の Unicode 記号に変更する場合は不要です（[Signs](#signs)）。
 
 画像表示には、次も必要です。
 
 - [snacks.nvim](https://github.com/folke/snacks.nvim) — `image` を有効にしてください。2.31.0 の配置 API で検証済み。
 - **Ghostty / Kitty など** — Kitty Graphics Protocol のインライン画像に対応したターミナル。
-- **ImageMagick** — 使用中の Snacks の実装では、PNG も `magick identify` または `identify` を使います。
+- **ImageMagick** — Snacks が画像サイズの取得に `magick` または `identify` を使います。
+
+`ArfCopyPlot` でのプロットのコピーには、macOS は `osascript`、Linux は `wl-copy`（Wayland）または `xclip`（X11）、Windows は PowerShell が必要です。
 
 ## Installation
 
@@ -73,7 +75,6 @@ return {
 
 Snacks を既に設定している場合は、その設定に `image = { enabled = true }` を追加してください。
 テキスト出力だけを使う場合は `dependencies` を省略できます。
-上の設定では、R ファイルを開いたときに lazy.nvim がプラグインを読み込み、指定したキーを登録します。
 
 ## Usage
 
@@ -108,8 +109,6 @@ plot(model)
 
 R 自身が省略した行・列や保存容量を超えた部分は読めません。[出力設定](#output-and-floats)を変更して再実行してください。
 
-`:ArfClear` は表示だけを消し、R の変数を残します。変数も含めてやり直す場合は `:ArfStop` で自動起動したセッションを終了し、必要な式を再実行してください。外部セッションは別途終了します。
-
 ### Keymaps
 
 プラグインは R バッファのキーバインドを自動登録しません。Installation の設定例では lazy.nvim を通じてキーを登録します。対応する操作は [Commands](#commands) を参照してください。
@@ -137,7 +136,7 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 | `:ArfCopyPlot` | `<LocalLeader>fy` | 直近に生成した保存済みプロット画像をクリップボードにコピー。 |
 | `:ArfStop` | `<LocalLeader>fs` | 自動起動した arf を実行中でも終了し、全バッファの結果・サインを削除。次の実行は新しいセッションになります。`pid` 指定時は何も変更せず警告します。 |
 
-`:ArfCopyPlot` は全バッファの保存済み結果から、最後に生成したプロット結果の最後の画像をクリップボードにコピーします。R は再実行しません。macOS は `osascript`、Linux は `wl-copy`（Wayland）または `xclip`（X11）、Windows は PowerShell を使います。削除・置換された結果の画像はコピー対象から外れます。
+`:ArfCopyPlot` は全バッファから直近のプロット結果を探し、その最後の画像をコピーします。削除・置換された結果はコピーしません。
 
 ### Object inspection
 
@@ -163,7 +162,7 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 
 `inspect(fn, opts)` には ASCII の R 関数名、または公開された `package::function` を指定します。R コードは `{ r = [[ ... ]] }` で明示的に指定できます。パッケージは事前にインストールしてください。`library()` は不要です。画像は表示しません。
 
-`title` は省略可能で、既定は `関数名(オブジェクト名)` です。`base::summary` の場合は `summary(オブジェクト名)` になります。
+`title` は省略可能で、既定は `summary(x)` のような `関数名(オブジェクト名)`、`{ r = ... }` の場合は `inspect(オブジェクト名)` です。
 
 関数にはカーソル下のオブジェクトを一つ渡します。追加引数が必要なら R の無名関数を指定できます。エラーはフロートに表示します。
 
@@ -177,7 +176,7 @@ require("arf").inspect({
 }, { title = "90% confidence interval" })
 ```
 
-`{ r = ... }` の既定タイトルは `inspect(オブジェクト名)` です。文字列には信頼できる R コードを指定してください。既存の R セッションで定義した関数も `inspect("inspect_ci")` のように使えます。
+文字列には信頼できる R コードを指定してください。既存の R セッションで定義した関数も `inspect("inspect_ci")` のように名前で指定できます。
 
 ### Execution and sessions
 
@@ -197,13 +196,13 @@ require("arf").inspect({
 
 ```lua
 require("arf").setup({
-  theme = "default",         -- "default", "auto", or "neon"
+  theme = "default",          -- "default", "auto", or "neon"
 
   -- arf / R session
-  executable = "arf",        -- Command name or executable path
-  pid = nil,                 -- nil: start a session; number: use an existing session
+  executable = "arf",         -- Command name or executable path
+  pid = nil,                  -- nil: start a session; number: use an existing session
   startup_timeout = 10000,    -- Session startup timeout in milliseconds
-  eval_timeout = 300000,       -- IPC response timeout in milliseconds
+  eval_timeout = 300000,      -- IPC response timeout in milliseconds
 
   -- Image display limits in terminal cells
   image_max_width = 100,      -- Maximum columns
@@ -220,8 +219,8 @@ require("arf").setup({
   inline_max_lines = 20,      -- Inline body lines, excluding notices and images
   output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
   -- Shared by ArfOutput and object inspections
-  float_width = "60%",       -- "auto", positive integer, or "1%" to "100%"
-  float_max_height = 30,     -- Maximum rows; shrinks for short output
+  float_width = "60%",        -- "auto", positive integer, or "1%" to "100%"
+  float_max_height = 30,      -- Maximum rows; shrinks for short output
 
   -- Execution signs
   signs = {
@@ -231,7 +230,7 @@ require("arf").setup({
     success = { text = "", hl = "ArfSignSuccess" },
     error = { text = "", hl = "ArfSignError" },
     running = {
-      text = "…",            -- Initial symbol; also used when animation is disabled
+      text = "…",             -- Initial symbol; also used when animation is disabled
       hl = "ArfSignRunning",
       frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
       interval = 80,          -- Frame interval in milliseconds
@@ -253,21 +252,7 @@ require("arf").setup({
 
 画像は生成順に縦に表示します。`image_max_width` / `image_max_height` は画像ごとの表示上限（セル）、`plot_width_px` / `plot_height_px` / `plot_dpi` は生成 PNG の幅・高さ（px）・解像度（dpi）です。表示サイズはウィンドウにも制限されます。
 
-PNG 設定は正の整数で指定し、変更後は再実行してください。ピクセル数と DPI を同じ比率で増やすと、文字や線の表示サイズを保ったまま画質を上げられる場合があります。
-
-### 設定名の変更
-
-既存の設定は以下の名前に変更してください。
-
-- `output_max_lines` → `inline_max_lines`
-- `output_width` / `inspect_width` → `float_width`
-- `output_max_height` / `inspect_max_height` → `float_max_height`
-- `image_width` / `image_height` → `image_max_width` / `image_max_height`
-- `plot_width` / `plot_height` / `plot_res` → `plot_width_px` / `plot_height_px` / `plot_dpi`
-- `timeout` → `eval_timeout`
-- `tibble_width = math.huge` → `tibble_width = "all"`
-
-旧設定名を指定すると、移行先を示すエラーになります。tibble の幅は既定で `"auto"`、フロートの幅は `"60%"`、両フロートの最大高さは共通で30行です。行数設定は tibble にのみ適用されます。有限の幅を指定すると R の `width` も一時設定するため、通常の data.frame などの出力幅にも影響します。
+PNG 設定は再実行後に反映されます。ピクセル数と DPI を同じ比率で増やすと、文字や線の表示サイズを保ったまま画質を上げられる場合があります。
 
 ### Output and floats
 
@@ -286,16 +271,14 @@ opts = {
 - `inline_max_lines`：インラインの本文行数。区切り線・省略案内・画像は含みません。
 - `tibble_max_rows`：tibble の最大出力行数。既定の `false` は R 側の設定を維持します。個別に指定するなら `print(df, n = 100)`、列の省略も避けるなら `print(df, n = 100, width = Inf)` を使います。明示的な `n` が優先されます。
 - `output_max_bytes`：評価ごとの保存容量（既定 1 MiB）。stdout・stderr・エラー本文が対象で、画像は含みません。保存容量超過の案内が出たら、増やして再実行してください。R のメモリ使用量は制限しません。
-- `tibble_width`：`false` は R 側の設定を維持、`"auto"` は実行開始時のソースウィンドウの本文幅（行番号などを除く）、正の整数は文字幅の指定、`"all"` は全列出力です。有限の幅では一段で表示し、収まらない列は省略します。`"all"` は tibble によって複数段に分かれる場合があります。明示的な `print(..., width = ...)` が優先されます。ウィンドウ幅を変更した場合は再実行が必要です。
-- `float_width` / `float_max_height`：保存済み出力・summary などのオブジェクト確認に共通のフロートサイズ。`float_width = "auto"` は開く時点のエディタ幅から枠と余白を引いた幅、正の整数は文字幅、`"90%"` などの文字列はエディタ全体の幅に対する割合（整数の1〜100%）の指定です。割合は開くたびに計算し、小数点以下を切り捨てます。画面内に収まり、短い出力では高さが縮みます。画像はインラインだけに表示します。
+- `tibble_width`：`false` は R 側の設定を維持、`"auto"` は実行開始時のソースウィンドウの本文幅（行番号などを除く）、正の整数は文字幅の指定、`"all"` は全列出力です。有限の幅では一段で表示して収まらない列を省略し、R の `width` も一時設定するため data.frame などの出力幅にも影響します。`"all"` は tibble によって複数段に分かれる場合があります。明示的な `print(..., width = ...)` が優先されます。ウィンドウ幅を変更した場合は再実行が必要です。
+- `float_width` / `float_max_height`：保存済み出力・summary などのオブジェクト確認に共通のフロートサイズ。`float_width = "auto"` は開く時点のエディタ幅から枠と余白を引いた幅、正の整数は文字幅、`"90%"` などの文字列はエディタ幅に対する割合（整数の1〜100%）の指定です。画面内に収まり、短い出力では高さが縮みます。画像はインラインだけに表示します。
 
-数値は正の整数で指定します。`inline_max_lines` は次の表示更新、フロートのサイズは開き直したときに反映されます。`tibble_max_rows`・`tibble_width`・`output_max_bytes` の変更には再実行が必要です。
+数値は PNG 設定も含めて正の整数で指定します。`inline_max_lines` は次の表示更新、フロートのサイズは開き直したときに反映されます。`tibble_max_rows`・`tibble_width`・`output_max_bytes` の変更には再実行が必要です。
 
-`tibble_max_rows` と `tibble_width` はオブジェクト確認にも適用されます。評価中は `pillar.print_max` / `pillar.print_min` / `pillar.width`（有限の幅では R の `width` も）を一時設定し、評価後に元の値へ戻します。R コード内で変更した場合も同様です。
+`tibble_max_rows` と `tibble_width` はオブジェクト確認にも適用されます。設定した R のオプションは評価ごとに元へ戻します。
 
 ### Signs
-
-記号は `signs.range.text` / `signs.success.text` / `signs.error.text` / `signs.running.text` で指定できます。既定の成功・エラー記号には Nerd Font が必要です。
 
 | 設定項目 | 説明 |
 | --- | --- |
@@ -319,7 +302,19 @@ require("arf").setup({
 })
 ```
 
-スピナーは実行中の最終行に表示します。`signs.running.text = ""` で非表示にできます。設定変更は次の実行から反映されます。サインが見えない場合は `:set signcolumn=yes` を確認してください。
+スピナーは実行中の最終行に表示します。設定変更は次の実行から反映されます。サインが見えない場合は `:set signcolumn=yes` を確認してください。
+
+### 設定名の変更
+
+v0.5.0 で変更された旧設定名を指定すると、移行先を示すエラーになります。
+
+- `output_max_lines` → `inline_max_lines`
+- `output_width` / `inspect_width` → `float_width`
+- `output_max_height` / `inspect_max_height` → `float_max_height`
+- `image_width` / `image_height` → `image_max_width` / `image_max_height`
+- `plot_width` / `plot_height` / `plot_res` → `plot_width_px` / `plot_height_px` / `plot_dpi`
+- `timeout` → `eval_timeout`
+- `tibble_width = math.huge` → `tibble_width = "all"`
 
 ## API
 
@@ -328,20 +323,20 @@ require("arf").setup({
 ```lua
 local arf = require("arf")
 
-arf.run()          -- Run the top-level expression containing the cursor
-arf.run_all()      -- Run all top-level expressions in the current buffer in order
-arf.run(3, 5)       -- Run complete lines 3–5 (1-based, inclusive)
-arf.clear()        -- Clear current-buffer results, images, and signs; keep R objects
-arf.clear(bufnr)   -- Clear a buffer; 0 means the current buffer
+arf.setup(opts)       -- Configure the plugin; see Configuration
+arf.run()             -- Run the top-level expression containing the cursor
+arf.run(3, 5)         -- Run complete lines 3–5 (1-based, inclusive)
+arf.run_all()         -- Run all top-level expressions in the current buffer in order
+arf.clear()           -- Clear current-buffer results, images, and signs; keep R objects
+arf.clear(bufnr)      -- Clear a buffer; 0 means the current buffer
 arf.inspect(fn, opts) -- Call an R function on the object under the cursor; opts.title is optional
-arf.summary()        -- Shorthand for arf.inspect("base::summary")
-arf.output()       -- Show saved output at the cursor without evaluating R again
-arf.stop()         -- Terminate the owned session and clear results in all buffers
+arf.summary()         -- Shorthand for arf.inspect("base::summary")
+arf.output()          -- Show saved output at the cursor without evaluating R again
+arf.copy_plot()       -- Copy the most recent plot image to the clipboard
+arf.stop()            -- Terminate the owned session and clear results in all buffers
 ```
 
-`run`・`run_all`・`inspect`・短縮形の `summary` の R 評価は非同期です。独自キーマップとタイトル指定は [Object inspection](#object-inspection) を参照してください。
-`clear` は実行中の R 自体を中断しません。終了させる場合は `stop` を使ってください。
-`setup(opts)` の全設定と既定値は [Configuration](#configuration) を参照してください。
+`run`・`run_all`・`inspect`・`summary` の R 評価は非同期です。`clear` は実行中の R 自体を中断しません。終了させる場合は `stop` を使ってください。
 
 ## Highlights
 
@@ -358,7 +353,7 @@ require("arf").setup({ theme = "default" })
 -- カラースキームに合わせるなら "auto"、ネオン配色なら "neon"。
 ```
 
-`setup()` で即座に切り替わり、`ColorScheme` / `background` 変更時にも再適用します。独自の `Arf*` 設定は保持します。個別の色は setup 後に `nvim_set_hl()` で変更してください。以下は `"auto"` の既定値です。
+`setup()` を再度呼ぶと即座に切り替わります。ユーザーやカラースキームによる独自の `Arf*` 設定は保持します。以下は `"auto"` の既定値です。
 
 | グループ | 用途 | auto の既定 |
 | --- | --- | --- |
@@ -386,7 +381,7 @@ require("arf").setup({ theme = "default" })
 
 `"auto"` の配色はカラースキームの標準グループから取得します。RGB の文字色や背景色が未定義の場合、出力は元のグループ、区切り線は `NonText` にリンクします。
 
-独自の色を設定する例：
+独自の色を設定する例です。`:colorscheme` はハイライトを消去するため、`ColorScheme` で再設定します。
 
 ```lua
 local function arf_colors()

@@ -16,7 +16,7 @@ function M.copy(path)
 		local executable = vim.fn.executable("powershell.exe") == 1 and "powershell.exe" or "pwsh"
 		script = [[Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
-$image = [System.Drawing.Image]::FromFile($env.ARF_COPY_PLOT)
+$image = [System.Drawing.Image]::FromFile($env:ARF_COPY_PLOT)
 try { [System.Windows.Forms.Clipboard]::SetImage($image) } finally { $image.Dispose() }]]
 		args = { executable, "-NoProfile", "-NonInteractive", "-STA", "-Command", script }
 	elseif system == "Linux" then
