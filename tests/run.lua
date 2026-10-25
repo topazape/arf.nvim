@@ -23,6 +23,7 @@ local suites = {
 	"plot_capture",
 	"config",
 	"commands",
+	"clipboard",
 	"float",
 	"highlights",
 	"signs",

@@ -14,7 +14,7 @@ M.config = {
 	tibble_width = "auto",
 	inline_max_lines = 20,
 	output_max_bytes = 1048576,
-	float_width = "80%",
+	float_width = "60%",
 	float_max_height = 30,
 	signs = {
 		enabled = true,
@@ -251,6 +251,14 @@ function M.run_all()
 		return vim.notify("arf: " .. err, vim.log.levels.WARN)
 	end
 	run_expressions(buf, expressions)
+end
+
+function M.copy_plot()
+	local path = require("arf.results").latest_plot()
+	if not path then
+		return vim.notify("arf: No saved plot to copy", vim.log.levels.WARN)
+	end
+	require("arf.clipboard").copy(path)
 end
 
 function M.clear(buf)

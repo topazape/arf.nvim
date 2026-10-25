@@ -185,4 +185,18 @@ if vim.env.ARF_TEST_MODE ~= "unit" then
 	end
 	vim.api.nvim_buf_delete(buf, { force = true })
 end
+local first_buf, second_buf = buffer(), buffer()
+local function plot_result(paths)
+	return { text = "", paths = paths, cleanup = function() end }
+end
+results.put(first_buf, 0, 0, plot_result({ "first.png", "second.png" }))
+check(results.latest_plot() == "second.png", "copy selects final image")
+results.put(second_buf, 0, 0, plot_result({ "new.png" }))
+check(results.latest_plot() == "new.png", "copy selects newest result across buffers")
+results.put(second_buf, 0, 0, plot_result({}))
+check(results.latest_plot() == "second.png", "text replacement removes previous plot candidate")
+results.clear(first_buf)
+check(results.latest_plot() == nil, "cleared plots cannot be copied")
+vim.api.nvim_buf_delete(first_buf, { force = true })
+vim.api.nvim_buf_delete(second_buf, { force = true })
 print("results tests passed (" .. checks .. " checks)")

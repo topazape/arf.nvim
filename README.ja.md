@@ -50,7 +50,7 @@ return {
   "topazape/arf.nvim",
   version = "*",
   ft = "r",
-  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfOutput", "ArfStop" },
+  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfOutput", "ArfCopyPlot", "ArfStop" },
   dependencies = {
     {
       "folke/snacks.nvim",
@@ -65,6 +65,7 @@ return {
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear R results" },
     { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Show saved R output" },
+    { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Show R object summary" },
   },
 }
@@ -133,7 +134,10 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 | `:ArfClear` | `<LocalLeader>fc` | 現在バッファの出力・画像・サインを削除。R の変数は残します。 |
 | `:ArfSummary` | `<LocalLeader>fk` | カーソル下のオブジェクトに `base::summary()` を実行してフロート表示。 |
 | `:ArfOutput` | `<LocalLeader>fo` | カーソルを含む実行範囲の保存済み出力を開く。R は再実行しません。 |
+| `:ArfCopyPlot` | `<LocalLeader>fy` | 直近に生成した保存済みプロット画像をクリップボードにコピー。 |
 | `:ArfStop` | `<LocalLeader>fs` | 自動起動した arf を実行中でも終了し、全バッファの結果・サインを削除。次の実行は新しいセッションになります。`pid` 指定時は何も変更せず警告します。 |
+
+`:ArfCopyPlot` は全バッファの保存済み結果から、最後に生成したプロット結果の最後の画像をクリップボードにコピーします。R は再実行しません。macOS は `osascript`、Linux は `wl-copy`（Wayland）または `xclip`（X11）、Windows は PowerShell を使います。削除・置換された結果の画像はコピー対象から外れます。
 
 ### Object inspection
 
@@ -216,7 +220,7 @@ require("arf").setup({
   inline_max_lines = 20,      -- Inline body lines, excluding notices and images
   output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
   -- Shared by ArfOutput and object inspections
-  float_width = "80%",       -- "auto", positive integer, or "1%" to "100%"
+  float_width = "60%",       -- "auto", positive integer, or "1%" to "100%"
   float_max_height = 30,     -- Maximum rows; shrinks for short output
 
   -- Execution signs
@@ -263,7 +267,7 @@ PNG 設定は正の整数で指定し、変更後は再実行してください�
 - `timeout` → `eval_timeout`
 - `tibble_width = math.huge` → `tibble_width = "all"`
 
-旧設定名を指定すると、移行先を示すエラーになります。tibble の幅は既定で `"auto"`、フロートの幅は `"80%"`、両フロートの最大高さは共通で30行です。行数設定は tibble にのみ適用されます。有限の幅を指定すると R の `width` も一時設定するため、通常の data.frame などの出力幅にも影響します。
+旧設定名を指定すると、移行先を示すエラーになります。tibble の幅は既定で `"auto"`、フロートの幅は `"60%"`、両フロートの最大高さは共通で30行です。行数設定は tibble にのみ適用されます。有限の幅を指定すると R の `width` も一時設定するため、通常の data.frame などの出力幅にも影響します。
 
 ### Output and floats
 
