@@ -36,3 +36,7 @@ end, { desc = "Open saved output for the execution under the cursor" })
 vim.api.nvim_create_user_command("ArfCopyPlot", function()
 	require("arf").copy_plot()
 end, { desc = "Copy the most recently generated saved plot to the clipboard" })
+
+vim.api.nvim_create_user_command("ArfObjects", function()
+	require("arf").objects()
+end, { desc = "Pick an R object to inspect" })

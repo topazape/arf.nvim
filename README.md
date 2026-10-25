@@ -51,7 +51,7 @@ return {
   "topazape/arf.nvim",
   version = "*",
   ft = "r",
-  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfOutput", "ArfCopyPlot", "ArfStop" },
+  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfObjects", "ArfOutput", "ArfCopyPlot", "ArfStop" },
   dependencies = {
     {
       "folke/snacks.nvim",
@@ -72,7 +72,7 @@ return {
 }
 ```
 
-If you already configure Snacks, add `image = { enabled = true }` to its options. You can omit `dependencies` when using text output only.
+If you already configure Snacks, add `image = { enabled = true }` to its options. You can omit `dependencies` if you use neither inline plots nor the Object Picker.
 
 ## Usage
 
@@ -128,12 +128,22 @@ These commands are available directly; the keys shown are configured by the Inst
 | `:ArfRun` | `<LocalLeader>fr` | Run the current expression in Normal mode or complete selected lines in Visual mode. Use `:3,5ArfRun` to run complete lines in an explicit range. |
 | `:ArfRunAll` | `<LocalLeader>fR` | Run every top-level expression in the current buffer in order, displaying results below each expression. |
 | `:ArfClear` | `<LocalLeader>fc` | Remove output, images, and signs from the current buffer; keep R objects. |
+| `:ArfObjects` | — | Search and inspect objects in the current R session. |
 | `:ArfSummary` | `<LocalLeader>fk` | Call `base::summary()` on the object under the cursor and show it in a float. |
 | `:ArfOutput` | `<LocalLeader>fo` | Open saved output for the execution range under the cursor without evaluating R again. |
 | `:ArfCopyPlot` | `<LocalLeader>fy` | Copy the most recently generated saved plot image to the clipboard. |
 | `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. With an explicit `pid`, warn without changing anything. |
 
 `:ArfCopyPlot` searches all buffers and copies the last image of the most recent plot result. Cleared or replaced results are not copied.
+
+### Object Picker
+
+Use `:ArfObjects` or `require("arf").objects()` to fuzzy search names in the current session's `.GlobalEnv` with Snacks.picker. Rows show the name, class, and dimensions or length when available. This feature requires Snacks.picker.
+
+- Type a name in insert mode; `<CR>` runs `summary()`.
+- In normal mode, `p` runs `print()`, `r` refreshes the list, and `q` closes it.
+- Results use the existing float. `ArfOutput` separately reopens saved execution output.
+- The list reflects the session when the Picker opens. Dot-prefixed names are omitted.
 
 ### Object inspection
 
@@ -326,6 +336,7 @@ arf.run_all()         -- Run all top-level expressions in the current buffer in 
 arf.clear()           -- Clear current-buffer results, images, and signs; keep R objects
 arf.clear(bufnr)      -- Clear a buffer; 0 means the current buffer
 arf.inspect(fn, opts) -- Call an R function on the object under the cursor; opts.title is optional
+arf.objects()         -- Pick a global R object to inspect
 arf.summary()         -- Shorthand for arf.inspect("base::summary")
 arf.output()          -- Show saved output at the cursor without evaluating R again
 arf.copy_plot()       -- Copy the most recent plot image to the clipboard

@@ -319,7 +319,7 @@ end
 
 ---@param fn string R function name or package::function.
 ---@param opts? arf.InspectOpts
-function M.inspect(fn, opts)
+local function inspect_name(fn, opts, name)
 	if opts ~= nil and type(opts) ~= "table" then
 		return vim.notify("arf: inspect options must be a table", vim.log.levels.ERROR)
 	end
@@ -328,17 +328,18 @@ function M.inspect(fn, opts)
 		return vim.notify("arf: inspect title must be a string without control characters", vim.log.levels.ERROR)
 	end
 	local inspect = require("arf.inspect")
-	local name = inspect.object()
+	local global_only = name ~= nil
+	name = name or inspect.object()
 	if not name then
 		return vim.notify("arf: Place the cursor on an R object name", vim.log.levels.WARN)
 	end
-	local code, err = inspect.code(fn, name)
+	local code, err = inspect.code(fn, name, global_only)
 	if not code then
 		return vim.notify("arf: " .. err, vim.log.levels.ERROR)
 	end
 	-- Capture the title now, independently of later changes to the caller's options.
 	local display_fn = type(fn) == "table" and "inspect" or (fn == "base::summary" and "summary" or fn)
-	local title = opts.title or (display_fn .. "(" .. name .. ")")
+	local title = opts.title or (display_fn .. "(" .. (global_only and vim.fn.strtrans(name) or name) .. ")")
 	local win, buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
 	local tick = vim.api.nvim_buf_get_changedtick(buf)
 	local results = require("arf.results")
@@ -364,6 +365,48 @@ function M.inspect(fn, opts)
 			end
 		end
 	end, nil, nil, valid)
+end
+
+function M.inspect(fn, opts)
+	return inspect_name(fn, opts)
+end
+
+function M.objects()
+	local picker = require("arf.object_picker")
+	local available, err = picker.available()
+	if not available then
+		return vim.notify("arf: " .. err, vim.log.levels.ERROR)
+	end
+	local objects = require("arf.objects")
+	local win, buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+	local function load(done, valid)
+		evaluate({ objects.code }, function(result)
+			result.cleanup()
+			if result.error or result.truncated then
+				vim.notify("arf: " .. (result.error or "Object list exceeded output_max_bytes"), vim.log.levels.ERROR)
+				return
+			end
+			local ok, items = pcall(objects.decode, result.text)
+			if not ok then
+				return vim.notify("arf: Unable to read object list: " .. tostring(items), vim.log.levels.ERROR)
+			end
+			if valid() then
+				local shown, show_error = pcall(done, items)
+				if not shown then
+					vim.notify("arf: " .. tostring(show_error), vim.log.levels.ERROR)
+				end
+			end
+		end, nil, nil, valid)
+	end
+	load(function(items)
+		picker.open(items, load, function(fn, name)
+			inspect_name(fn, nil, name)
+		end)
+	end, function()
+		return vim.api.nvim_win_is_valid(win)
+			and vim.api.nvim_get_current_win() == win
+			and vim.api.nvim_win_get_buf(win) == buf
+	end)
 end
 
 -- Keep the existing public API as a shorthand for inspection.

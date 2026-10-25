@@ -22,16 +22,18 @@ local function identifier(name)
 	return name:match("^[A-Za-z.][A-Za-z0-9._]*$") and not name:match("^%.%d")
 end
 
-function M.code(fn, name)
+function M.code(fn, name, global_only)
+	local inherits = global_only and "FALSE" or "TRUE"
 	if type(fn) == "table" then
 		if type(fn.r) ~= "string" or not fn.r:find("%S") then
 			return nil, "inspect expects { r = non-empty R function code }"
 		end
 		-- Explicit R code is evaluated in the session; object names remain data.
 		return string.format(
-			"(\n%s\n)(base::get(%s, envir = .GlobalEnv, inherits = TRUE))",
+			"(\n%s\n)(base::get(%s, envir = .GlobalEnv, inherits = %s))",
 			fn.r,
-			vim.json.encode(name)
+			vim.json.encode(name),
+			inherits
 		)
 	end
 	if type(fn) ~= "string" then
@@ -56,7 +58,12 @@ function M.code(fn, name)
 			vim.json.encode(function_name)
 		)
 	end
-	return string.format("%s(base::get(%s, envir = .GlobalEnv, inherits = TRUE))", callable, vim.json.encode(name))
+	return string.format(
+		"%s(base::get(%s, envir = .GlobalEnv, inherits = %s))",
+		callable,
+		vim.json.encode(name),
+		inherits
+	)
 end
 
 function M.show(title, result, owner)

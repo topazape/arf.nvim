@@ -12,6 +12,8 @@ end
 local suites = {
 	"run_all",
 	"inspect",
+	"objects",
+	"object_picker_snacks",
 	"output",
 	"results",
 	"session",
@@ -30,7 +32,7 @@ local suites = {
 	"integration",
 }
 if unit then
-	local integration = { snacks = true, plot_capture = true, integration = true }
+	local integration = { object_picker_snacks = true, snacks = true, plot_capture = true, integration = true }
 	suites = vim.tbl_filter(function(name)
 		return not integration[name]
 	end, suites)
