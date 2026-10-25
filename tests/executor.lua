@@ -94,16 +94,20 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 		dir = vim.json.decode(assert(opts.stdin:match('%.arf_stdout_path <%- ("[^"]+")'))):gsub("/stdout.bin$", "")
 		return { kill = function() end }
 	end
-	local function rcheck(source, rows, assertions)
-		local settings = vim.tbl_extend("force", config, { output_max_bytes = 1048576, tibble_max_rows = rows })
+	local function rcheck(source, rows, assertions, width)
+		local settings = vim.tbl_extend(
+			"force",
+			config,
+			{ output_max_bytes = 1048576, tibble_max_rows = rows, tibble_width = width or false }
+		)
 		executor.eval(source, settings, function() end)
 		local code = table.concat({
-			"options(pillar.print_max = 7, pillar.print_min = NULL)",
-			'old <- options()[c("pillar.print_max", "pillar.print_min")]',
+			"options(pillar.print_max = 7, pillar.print_min = NULL, pillar.width = NULL)",
+			'old <- options()[c("pillar.print_max", "pillar.print_min", "pillar.width")]',
 			"captured <- capture.output(tryCatch({",
 			options.stdin,
 			"}, error = function(e) NULL))",
-			'stopifnot(identical(options()[c("pillar.print_max", "pillar.print_min")], old))',
+			'stopifnot(identical(options()[c("pillar.print_max", "pillar.print_min", "pillar.width")], old))',
 			assertions or "",
 		}, "\n")
 		local reply = original({ "Rscript", "--vanilla", "-" }, { text = true, stdin = code }):wait(30000)
@@ -112,6 +116,27 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 	end
 	rcheck('stopifnot(getOption("pillar.print_max") == 100, getOption("pillar.print_min") == 100)', 100)
 	rcheck('stop("expected")', 100)
+	rcheck('stopifnot(getOption("pillar.width") == 160)', false, nil, 160)
+	rcheck(
+		'stopifnot(is.infinite(getOption("pillar.width"))); options(pillar.width = 20); stop("expected")',
+		100,
+		nil,
+		"all"
+	)
+	rcheck('stopifnot(is.null(getOption("pillar.width")))', false)
+	local wide = 'tibble::as_tibble(setNames(rep(list(1:2), 12), paste0("column", 1:12)))'
+	rcheck(
+		'if (requireNamespace("tibble", quietly = TRUE)) ' .. wide,
+		100,
+		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(!any(grepl("more variables", captured)), any(grepl("column12", captured)))',
+		"all"
+	)
+	rcheck(
+		'if (requireNamespace("tibble", quietly = TRUE)) print(' .. wide .. ", width = 20)",
+		100,
+		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("more variables", captured)))',
+		"all"
+	)
 	rcheck('stopifnot(getOption("pillar.print_max") == 7, is.null(getOption("pillar.print_min")))', false)
 	rcheck(
 		'if (requireNamespace("tibble", quietly = TRUE)) tibble::tibble(x = seq_len(32))',

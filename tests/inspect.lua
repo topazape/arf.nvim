@@ -138,8 +138,8 @@ check(opened[1].title == "summary(model)", "default title")
 check(last_text() == "result", "text output")
 check(cleaned == 1, "release evaluation resources")
 check(opened[1].opts.owner == source, "float belongs to source buffer")
-check(opened[1].opts.width == arf.config.inspect_width, "reuse configured float width")
-check(opened[1].opts.max_height == arf.config.inspect_max_height, "reuse configured float height")
+check(opened[1].opts.width == arf.config.float_width, "reuse configured float width")
+check(opened[1].opts.max_height == arf.config.float_max_height, "reuse configured float height")
 local opts = { title = "Model performance" }
 arf.inspect("performance::model_performance", opts)
 opts.title = "changed after evaluation started"

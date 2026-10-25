@@ -81,7 +81,7 @@ eq(output.full_lines({ text = "" }), {}, "empty output")
 eq(output.full_lines({ text = "", error = "failed" }), {
 	{ { "R error: failed", "ArfError" } },
 }, "error-only output")
-require("arf").config.output_max_lines = 2
+require("arf").config.inline_max_lines = 2
 lines = output.preview({ text = "a\nb\nc", truncated = true })
 eq(#lines, 4, "notices do not consume preview body limit")
 eq(lines[3][1][1], "… 1 more lines (view with :ArfOutput)", "omitted line count")

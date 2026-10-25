@@ -39,10 +39,7 @@ function M.code(fn, name)
 	end
 	local package_name, function_name = fn:match("^([^:]+)::([^:]+)$")
 	function_name = function_name or fn
-	if
-		not identifier(function_name)
-		or (package_name and not package_name:match("^[A-Za-z][A-Za-z0-9.]*$"))
-	then
+	if not identifier(function_name) or (package_name and not package_name:match("^[A-Za-z][A-Za-z0-9.]*$")) then
 		return nil, "inspect expects an R function name or package::function, not an R expression"
 	end
 	-- Resolve names as data: never parse or interpolate user-supplied R code.
@@ -65,8 +62,8 @@ end
 function M.show(title, result, owner)
 	local config = require("arf").config
 	require("arf.float").open(title, require("arf.output").full_lines(result), {
-		width = config.inspect_width,
-		max_height = config.inspect_max_height,
+		width = config.float_width,
+		max_height = config.float_max_height,
 		owner = owner,
 	})
 end

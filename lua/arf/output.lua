@@ -171,7 +171,7 @@ function M.full_lines(result)
 end
 
 function M.preview(result)
-	local lines, total = M.lines(result, require("arf").config.output_max_lines)
+	local lines, total = M.lines(result, require("arf").config.inline_max_lines)
 	if total > #lines then
 		lines[#lines + 1] = { { "… " .. (total - #lines) .. " more lines (view with :ArfOutput)", "ArfWarning" } }
 	end
