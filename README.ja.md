@@ -216,7 +216,7 @@ require("arf").setup({
   inline_max_lines = 20,      -- Inline body lines, excluding notices and images
   output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
   -- Shared by ArfOutput and object inspections
-  float_width = "auto",      -- Editor width minus borders and margins; or positive integer
+  float_width = "80%",       -- "auto", positive integer, or "1%" to "100%"
   float_max_height = 30,     -- Maximum rows; shrinks for short output
 
   -- Execution signs
@@ -263,7 +263,7 @@ PNG 設定は正の整数で指定し、変更後は再実行してください�
 - `timeout` → `eval_timeout`
 - `tibble_width = math.huge` → `tibble_width = "all"`
 
-旧設定名を指定すると、移行先を示すエラーになります。tibble とフロートの幅は既定で `"auto"`、両フロートの最大高さは共通で30行です。行数設定は tibble にのみ適用されます。有限の幅を指定すると R の `width` も一時設定するため、通常の data.frame などの出力幅にも影響します。
+旧設定名を指定すると、移行先を示すエラーになります。tibble の幅は既定で `"auto"`、フロートの幅は `"80%"`、両フロートの最大高さは共通で30行です。行数設定は tibble にのみ適用されます。有限の幅を指定すると R の `width` も一時設定するため、通常の data.frame などの出力幅にも影響します。
 
 ### Output and floats
 
@@ -283,7 +283,7 @@ opts = {
 - `tibble_max_rows`：tibble の最大出力行数。既定の `false` は R 側の設定を維持します。個別に指定するなら `print(df, n = 100)`、列の省略も避けるなら `print(df, n = 100, width = Inf)` を使います。明示的な `n` が優先されます。
 - `output_max_bytes`：評価ごとの保存容量（既定 1 MiB）。stdout・stderr・エラー本文が対象で、画像は含みません。保存容量超過の案内が出たら、増やして再実行してください。R のメモリ使用量は制限しません。
 - `tibble_width`：`false` は R 側の設定を維持、`"auto"` は実行開始時のソースウィンドウの本文幅（行番号などを除く）、正の整数は文字幅の指定、`"all"` は全列出力です。有限の幅では一段で表示し、収まらない列は省略します。`"all"` は tibble によって複数段に分かれる場合があります。明示的な `print(..., width = ...)` が優先されます。ウィンドウ幅を変更した場合は再実行が必要です。
-- `float_width` / `float_max_height`：保存済み出力・summary などのオブジェクト確認に共通のフロートサイズ。`float_width = "auto"` は開く時点のエディタ幅から枠と余白を引いた幅、正の整数は文字幅の指定です。画面内に収まり、短い出力では高さが縮みます。画像はインラインだけに表示します。
+- `float_width` / `float_max_height`：保存済み出力・summary などのオブジェクト確認に共通のフロートサイズ。`float_width = "auto"` は開く時点のエディタ幅から枠と余白を引いた幅、正の整数は文字幅、`"90%"` などの文字列はエディタ全体の幅に対する割合（整数の1〜100%）の指定です。割合は開くたびに計算し、小数点以下を切り捨てます。画面内に収まり、短い出力では高さが縮みます。画像はインラインだけに表示します。
 
 数値は正の整数で指定します。`inline_max_lines` は次の表示更新、フロートのサイズは開き直したときに反映されます。`tibble_max_rows`・`tibble_width`・`output_max_bytes` の変更には再実行が必要です。
 

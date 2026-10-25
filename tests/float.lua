@@ -73,6 +73,26 @@ vim.api.nvim_set_current_buf(source)
 local resized = arf.output()
 assert(vim.api.nvim_win_get_config(resized).width == vim.o.columns - 4, "auto recalculates when reopened")
 float.close()
+for _, percent in ipairs({ 1, 90, 100 }) do
+	vim.api.nvim_set_current_buf(source)
+	arf.setup({ float_width = percent .. "%" })
+	local percentage = arf.output()
+	local expected = math.max(1, math.min(math.floor(vim.o.columns * percent / 100), vim.o.columns - 4))
+	assert(
+		vim.api.nvim_win_get_config(percentage).width == expected,
+		"percentage uses editor width and clamps to screen"
+	)
+	float.close()
+end
+vim.o.columns = vim.o.columns + 20
+vim.api.nvim_set_current_buf(source)
+arf.setup({ float_width = "90%" })
+local percentage_resized = arf.output()
+assert(
+	vim.api.nvim_win_get_config(percentage_resized).width == math.floor(vim.o.columns * 0.9),
+	"percentage recalculates when reopened"
+)
+float.close()
 vim.api.nvim_set_current_buf(source)
 arf.output()
 local owned = vim.api.nvim_get_current_win()

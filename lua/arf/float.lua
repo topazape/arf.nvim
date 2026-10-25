@@ -34,7 +34,13 @@ function M.open(title, lines, opts)
 		end
 		text[#text + 1] = table.concat(parts)
 	end
-	local width = math.max(1, math.min(opts.width == "auto" and vim.o.columns - 4 or opts.width, vim.o.columns - 4))
+	local width = opts.width
+	if width == "auto" then
+		width = vim.o.columns - 4
+	elseif type(width) == "string" then
+		width = math.floor(vim.o.columns * tonumber(width:match("^(%d+)%%$")) / 100)
+	end
+	width = math.max(1, math.min(width, vim.o.columns - 4))
 	local height = math.max(1, math.min(#text, opts.max_height, vim.o.lines - 4))
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.bo[buf].bufhidden = "wipe"

@@ -213,7 +213,7 @@ require("arf").setup({
   inline_max_lines = 20,      -- Inline body lines, excluding notices and images
   output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
   -- Shared by ArfOutput and object inspections
-  float_width = "auto",      -- Editor width minus borders and margins; or positive integer
+  float_width = "80%",       -- "auto", positive integer, or "1%" to "100%"
   float_max_height = 30,     -- Maximum rows; shrinks for short output
 
   -- Execution signs
@@ -260,7 +260,7 @@ Settings now describe what they control. Update existing configurations:
 - `timeout` → `eval_timeout`
 - `tibble_width = math.huge` → `tibble_width = "all"`
 
-Old setting names produce an error naming their replacement. Tibble and float widths now default to `"auto"`. Both floats share a maximum height of 30 rows. Tibble row settings apply only to tibbles. Finite tibble widths also temporarily set R's `width`, which affects other printed output.
+Old setting names produce an error naming their replacement. Tibble width defaults to `"auto"` and float width to `"80%"`. Both floats share a maximum height of 30 rows. Tibble row settings apply only to tibbles. Finite tibble widths also temporarily set R's `width`, which affects other printed output.
 
 ### Output and floats
 
@@ -280,7 +280,7 @@ This prints up to 100 tibble rows and shows the first 20 lines inline. Read the 
 - `tibble_max_rows`: maximum tibble rows to print. The default `false` preserves R's settings. For individual expressions, use `print(df, n = 100)` or `print(df, n = 100, width = Inf)` to include omitted columns too. An explicit `n` takes precedence.
 - `output_max_bytes`: retained text per evaluation (default 1 MiB), including stdout, stderr, and errors but excluding images. If a retention-limit notice appears, increase it and rerun. This does not limit R's memory usage.
 - `tibble_width`: `false` preserves R's settings; `"auto"` uses the source window's text width at execution start (excluding gutters); a positive integer sets the output width in characters; `"all"` prints all columns. Finite widths show one tier and omit columns that do not fit. `"all"` may be stacked in multiple tiers by tibble. An explicit `print(..., width = ...)` takes precedence. Resizing requires re-evaluation.
-- `float_width` / `float_max_height`: shared float size for saved output, summary, and other inspections. `float_width = "auto"` uses the editor width minus borders and margins when opened; a positive integer specifies columns. Floats fit the screen and shrink vertically for short output. Images appear only inline.
+- `float_width` / `float_max_height`: shared float size for saved output, summary, and other inspections. `float_width = "auto"` uses the editor width minus borders and margins when opened; a positive integer specifies columns; a string such as `"90%"` specifies a percentage of the full editor width (integer 1–100%). Percentages are recalculated when opened and rounded down. Floats fit the screen and shrink vertically for short output. Images appear only inline.
 
 Numeric values require positive integers. `inline_max_lines` applies on the next display refresh; float sizes apply when reopened. Changes to `tibble_max_rows`, `tibble_width`, and `output_max_bytes` require re-evaluation.
 

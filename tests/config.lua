@@ -46,12 +46,12 @@ end
 for _, value in ipairs({ 0, -1, 1.5, math.huge, -math.huge, 0 / 0, "160", true, {} }) do
 	reject({ tibble_width = value })
 end
-assert(defaults.float_width == "auto")
-for _, value in ipairs({ "auto", 80 }) do
+assert(defaults.float_width == "80%")
+for _, value in ipairs({ "auto", 80, "1%", "90%", "100%" }) do
 	arf.setup({ float_width = value })
 	assert(arf.config.float_width == value)
 end
-for _, value in ipairs({ 0, -1, 1.5, math.huge, "all", "80", false, 0 / 0 }) do
+for _, value in ipairs({ 0, -1, 1.5, math.huge, "all", "80", "0%", "101%", "90.5%", "-5%", "90% ", "%", false, 0 / 0 }) do
 	reject({ float_width = value })
 end
 for old, new in pairs({
