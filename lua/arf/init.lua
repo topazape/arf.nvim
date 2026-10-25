@@ -3,20 +3,19 @@ M.config = {
 	theme = "default",
 	executable = "arf",
 	pid = nil,
-	timeout = 300000,
+	eval_timeout = 300000,
 	startup_timeout = 10000,
-	image_width = 100,
-	image_height = 30,
-	plot_width = 1200,
-	plot_height = 800,
-	plot_res = 180,
-	inspect_width = 120,
-	inspect_max_height = 20,
+	image_max_width = 100,
+	image_max_height = 30,
+	plot_width_px = 1200,
+	plot_height_px = 800,
+	plot_dpi = 180,
 	tibble_max_rows = false,
-	output_max_lines = 20,
+	tibble_width = "auto",
+	inline_max_lines = 20,
 	output_max_bytes = 1048576,
-	output_width = 120,
-	output_max_height = 30,
+	float_width = "auto",
+	float_max_height = 30,
 	signs = {
 		enabled = true,
 		priority = 5,
@@ -36,21 +35,36 @@ local epoch = 0
 local cancel_current
 
 function M.setup(opts)
+	local renamed = {
+		output_max_lines = "inline_max_lines",
+		output_width = "float_width",
+		inspect_width = "float_width",
+		output_max_height = "float_max_height",
+		inspect_max_height = "float_max_height",
+		image_width = "image_max_width",
+		image_height = "image_max_height",
+		plot_width = "plot_width_px",
+		plot_height = "plot_height_px",
+		plot_res = "plot_dpi",
+		timeout = "eval_timeout",
+	}
+	for old, new in pairs(renamed) do
+		assert(not opts or opts[old] == nil, "arf: " .. old .. " has been renamed to " .. new)
+	end
 	local config = vim.tbl_deep_extend("force", M.config, opts or {})
 	assert(
 		config.theme == "auto" or config.theme == "default" or config.theme == "neon",
 		'arf: theme must be "default", "auto", or "neon"'
 	)
 	for _, key in ipairs({
-		"plot_width",
-		"plot_height",
-		"plot_res",
-		"inspect_width",
-		"inspect_max_height",
-		"output_max_lines",
+		"image_max_width",
+		"image_max_height",
+		"plot_width_px",
+		"plot_height_px",
+		"plot_dpi",
+		"inline_max_lines",
 		"output_max_bytes",
-		"output_width",
-		"output_max_height",
+		"float_max_height",
 	}) do
 		local value = config[key]
 		assert(
@@ -68,6 +82,28 @@ function M.setup(opts)
 			),
 		"arf: tibble_max_rows must be false or a positive integer"
 	)
+	assert(
+		config.tibble_width == false
+			or config.tibble_width == "auto"
+			or config.tibble_width == "all"
+			or (
+				type(config.tibble_width) == "number"
+				and config.tibble_width > 0
+				and config.tibble_width < math.huge
+				and config.tibble_width == math.floor(config.tibble_width)
+			),
+		'arf: tibble_width must be false, "auto", a positive integer, or "all"'
+	)
+	assert(
+		config.float_width == "auto"
+			or (
+				type(config.float_width) == "number"
+				and config.float_width > 0
+				and config.float_width < math.huge
+				and config.float_width == math.floor(config.float_width)
+			),
+		'arf: float_width must be "auto" or a positive integer'
+	)
 	require("arf.signs").validate(config.signs)
 	M.config = config
 	require("arf.highlights").apply(config.theme)
@@ -77,6 +113,11 @@ end
 local function evaluate(codes, callback, on_start, on_error, valid)
 	if busy then
 		return vim.notify("arf: R is running", vim.log.levels.WARN)
+	end
+	local tibble_width = M.config.tibble_width
+	if tibble_width == "auto" then
+		local win = vim.api.nvim_get_current_win()
+		tibble_width = math.max(1, vim.api.nvim_win_get_width(win) - vim.fn.getwininfo(win)[1].textoff)
 	end
 	busy = true
 	local request_epoch = epoch
@@ -102,7 +143,7 @@ local function evaluate(codes, callback, on_start, on_error, valid)
 		if startup_error then
 			return failed(startup_error)
 		end
-		local config = vim.tbl_extend("force", M.config, { pid = pid })
+		local config = vim.tbl_extend("force", M.config, { pid = pid, tibble_width = tibble_width })
 		local function next_expression()
 			if request_epoch ~= epoch then
 				return
@@ -253,8 +294,8 @@ function M.output()
 				require("arf.output").stale(lines)
 			end
 			return require("arf.float").open("arf output", lines, {
-				width = M.config.output_width,
-				max_height = M.config.output_max_height,
+				width = M.config.float_width,
+				max_height = M.config.float_max_height,
 				owner = buf,
 			})
 		end

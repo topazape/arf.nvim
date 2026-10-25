@@ -7,7 +7,7 @@ end
 local arf = require("arf")
 local results = require("arf.results")
 local session = require("arf.session")
-arf.setup({ startup_timeout = 20000, timeout = 20000 })
+arf.setup({ startup_timeout = 20000, eval_timeout = 20000 })
 local buf = vim.api.nvim_get_current_buf()
 local notices = {}
 vim.notify = function(message)

@@ -21,8 +21,8 @@ function M.new(buf, row, path, on_grid)
 		inline = true,
 		conceal = false,
 		auto_resize = true,
-		max_width = config.image_width,
-		max_height = config.image_height,
+		max_width = config.image_max_width,
+		max_height = config.image_max_height,
 		on_update = function(placement)
 			-- Snacks builds the Kitty placeholder grid. Move that grid into our
 			-- single output extmark so text and image have an unambiguous order.

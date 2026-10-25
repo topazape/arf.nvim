@@ -4,7 +4,7 @@ local float = require("arf.float")
 local results = require("arf.results")
 local source = vim.api.nvim_get_current_buf()
 vim.api.nvim_buf_set_lines(source, 0, -1, false, { "x", "y", "z" })
-arf.setup({ output_width = 500, output_max_height = 500 })
+arf.setup({ float_width = 500, float_max_height = 500 })
 local notices = {}
 vim.notify = function(message)
 	notices[#notices + 1] = message
@@ -63,6 +63,16 @@ for _, map in ipairs(vim.api.nvim_buf_get_keymap(vim.api.nvim_win_get_buf(replac
 	end
 end
 assert(not vim.api.nvim_win_is_valid(replacement), "q closes float")
+vim.api.nvim_set_current_buf(source)
+arf.setup({ float_width = "auto" })
+local auto = arf.output()
+assert(vim.api.nvim_win_get_config(auto).width == vim.o.columns - 4, "auto uses editor width")
+float.close()
+vim.o.columns = vim.o.columns + 20
+vim.api.nvim_set_current_buf(source)
+local resized = arf.output()
+assert(vim.api.nvim_win_get_config(resized).width == vim.o.columns - 4, "auto recalculates when reopened")
+float.close()
 vim.api.nvim_set_current_buf(source)
 arf.output()
 local owned = vim.api.nvim_get_current_win()

@@ -5,6 +5,11 @@ local function string_field(reply, key)
 end
 
 function M.eval(source, config, callback)
+	local tibble_width = config.tibble_width
+	if tibble_width == "auto" then
+		local win = vim.api.nvim_get_current_win()
+		tibble_width = math.max(1, vim.api.nvim_win_get_width(win) - vim.fn.getwininfo(win)[1].textoff)
+	end
 	local dir = vim.fn.tempname()
 	vim.fn.mkdir(dir, "p", 448)
 	local function cleanup()
@@ -39,11 +44,16 @@ local({
   sink(.arf_stdout, type = "output")
   sink(.arf_stderr, type = "message")
   .arf_tibble_rows <- %s
+  .arf_tibble_width <- %s
+  .arf_options <- list()
   .arf_previous_options <- NULL
   tryCatch({
     if (!is.null(.arf_tibble_rows)) {
-      .arf_previous_options <- options(pillar.print_max = .arf_tibble_rows, pillar.print_min = .arf_tibble_rows)
+      .arf_options$pillar.print_max <- .arf_tibble_rows
+      .arf_options$pillar.print_min <- .arf_tibble_rows
     }
+    if (!is.null(.arf_tibble_width)) .arf_options$pillar.width <- .arf_tibble_width
+    if (length(.arf_options)) .arf_previous_options <- options(.arf_options)
     grDevices::png(%s, width = %d, height = %d, units = "px", res = %d)
     .arf_device <- grDevices::dev.cur()
     withCallingHandlers({
@@ -83,13 +93,14 @@ local({
 		vim.json.encode(dir .. "/stderr.bin"),
 		vim.json.encode(dir .. "/messages.bin"),
 		config.tibble_max_rows and tostring(config.tibble_max_rows) or "NULL",
+		tibble_width == "all" and "Inf" or (tibble_width and tostring(tibble_width) or "NULL"),
 		vim.json.encode(dir .. "/plot-%09d.png"),
-		config.plot_width,
-		config.plot_height,
-		config.plot_res,
+		config.plot_width_px,
+		config.plot_height_px,
+		config.plot_dpi,
 		vim.json.encode(source)
 	)
-	local args = { config.executable, "ipc", "eval", "--visible", "--timeout", tostring(config.timeout) }
+	local args = { config.executable, "ipc", "eval", "--visible", "--timeout", tostring(config.eval_timeout) }
 	if config.pid then
 		vim.list_extend(args, { "--pid", tostring(config.pid) })
 	end

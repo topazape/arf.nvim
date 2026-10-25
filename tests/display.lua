@@ -78,7 +78,7 @@ display.refresh()
 drain()
 check(created == 1 and shown == 1 and updated == 1, "coalesce refresh and create one placement")
 check(
-	opts.pos[1] == 2 and opts.max_width == require("arf").config.image_width,
+	opts.pos[1] == 2 and opts.max_width == require("arf").config.image_max_width,
 	"placement position and configured dimensions"
 )
 local ns = vim.api.nvim_create_namespace("arf.test.image")
