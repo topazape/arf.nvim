@@ -14,7 +14,7 @@ M.config = {
 	tibble_width = "auto",
 	inline_max_lines = 20,
 	output_max_bytes = 1048576,
-	float_width = "auto",
+	float_width = "80%",
 	float_max_height = 30,
 	signs = {
 		enabled = true,
@@ -94,15 +94,18 @@ function M.setup(opts)
 			),
 		'arf: tibble_width must be false, "auto", a positive integer, or "all"'
 	)
+	local percent = type(config.float_width) == "string" and config.float_width:match("^(%d+)%%$")
+	percent = tonumber(percent)
 	assert(
 		config.float_width == "auto"
+			or (percent and percent >= 1 and percent <= 100)
 			or (
 				type(config.float_width) == "number"
 				and config.float_width > 0
 				and config.float_width < math.huge
 				and config.float_width == math.floor(config.float_width)
 			),
-		'arf: float_width must be "auto" or a positive integer'
+		'arf: float_width must be "auto", a positive integer, or "1%" to "100%"'
 	)
 	require("arf.signs").validate(config.signs)
 	M.config = config
