@@ -54,6 +54,7 @@ available = { ["powershell.exe"] = true }
 message = nil
 clipboard.copy(path)
 assert(called.args[1] == "powershell.exe")
+assert(called.args[#called.args]:find("$env:ARF_COPY_PLOT", 1, true))
 snapshot = called.opts.env.ARF_COPY_PLOT
 assert(vim.fn.filereadable(snapshot) == 1)
 finish()

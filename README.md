@@ -19,7 +19,7 @@ A Neovim plugin powered by [arf](https://github.com/eitsupi/arf). Run expression
 ## Features
 
 - **Run expressions or the whole buffer** — Tree-sitter identifies pipelines, ggplot expressions, function definitions, and more. Visual selections and explicit line ranges work too.
-- **Inline results** — Display text and plots below the code, stacking multiple images in generation order and keeping results from other ranges.
+- **Inline results** — Display text and plots below the code, stacking multiple images in generation order and keeping results from other ranges. Copy the latest plot to the clipboard.
 - **Persistent R session** — Start a session automatically on first execution and reuse objects across runs.
 - **Read longer output** — Keep inline previews short, then search and copy the rest with `ArfOutput`. Configure how many tibble rows to print.
 - **Object inspection** — Call `summary()` or another R function on the object under the cursor.
@@ -36,7 +36,9 @@ Inline plots additionally require:
 
 - [snacks.nvim](https://github.com/folke/snacks.nvim) with `image` enabled. Tested with the placement API in version 2.31.0.
 - **A compatible terminal**, such as Ghostty or Kitty, supporting inline images through the Kitty Graphics Protocol.
-- **ImageMagick** — The tested Snacks implementation uses `magick identify` or `identify`, including for PNG files.
+- **ImageMagick** — Snacks uses `magick` or `identify` to read image sizes.
+
+Copying plots with `ArfCopyPlot` requires `osascript` on macOS, `wl-copy` (Wayland) or `xclip` (X11) on Linux, or PowerShell on Windows.
 
 ## Installation
 
@@ -72,8 +74,6 @@ return {
 
 If you already configure Snacks, add `image = { enabled = true }` to its options. You can omit `dependencies` when using text output only.
 
-With the spec above, lazy.nvim loads the plugin and registers the configured keys when you open an R file.
-
 ## Usage
 
 1. Start Neovim in your R project's working directory and open an `.R` file.
@@ -107,8 +107,6 @@ Place the cursor within an executed range and press `<LocalLeader>fo` or run `:A
 
 Rows or columns omitted by R and text exceeding the retention limit are unavailable. Change the [output settings](#output-and-floats) and rerun to include them.
 
-`:ArfClear` removes displayed results but keeps R objects. To start fresh, use `:ArfStop` to end the automatically started session, then rerun the expressions you need. End external sessions separately.
-
 ### Keymaps
 
 The plugin does not register R buffer keymaps automatically. The Installation example registers keys through lazy.nvim; see [Commands](#commands) for their actions.
@@ -135,7 +133,7 @@ These commands are available directly; the keys shown are configured by the Inst
 | `:ArfCopyPlot` | `<LocalLeader>fy` | Copy the most recently generated saved plot image to the clipboard. |
 | `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. With an explicit `pid`, warn without changing anything. |
 
-`:ArfCopyPlot` copies the last image from the most recently generated saved plot result across all buffers. It does not evaluate R again. Requires `osascript` on macOS, `wl-copy` (Wayland) or `xclip` (X11) on Linux, or PowerShell on Windows. Clearing or replacing results removes those plots from the copy candidates.
+`:ArfCopyPlot` searches all buffers and copies the last image of the most recent plot result. Cleared or replaced results are not copied.
 
 ### Object inspection
 
@@ -161,7 +159,7 @@ Object inspection (including summary) resolves the name under the cursor (includ
 
 `inspect(fn, opts)` accepts an ASCII R function name or an exported `package::function`; R code can be supplied explicitly with `{ r = [[ ... ]] }`. Install the package before using a namespace-qualified function; `library()` is unnecessary. Plots are not displayed.
 
-`title` is optional and defaults to `function(object)` (or `summary(object)` for `base::summary`).
+`title` is optional and defaults to `function(object)`, such as `summary(x)`, or `inspect(object)` for `{ r = ... }`.
 
 The function receives the object under the cursor as its only argument. Use an anonymous R function to supply extra arguments. Errors appear in the float.
 
@@ -175,7 +173,7 @@ require("arf").inspect({
 }, { title = "90% confidence interval" })
 ```
 
-The default title for `{ r = ... }` is `inspect(object)`. Supply trusted R code. Functions already defined in the R session remain usable as `inspect("inspect_ci")`.
+Supply trusted R code. Functions already defined in the R session can also be passed by name, such as `inspect("inspect_ci")`.
 
 ### Execution and sessions
 
@@ -194,13 +192,13 @@ Set only the options you want to change, using `opts` in your lazy.nvim spec. Ne
 
 ```lua
 require("arf").setup({
-  theme = "default",         -- "default", "auto", or "neon"
+  theme = "default",          -- "default", "auto", or "neon"
 
   -- arf / R session
-  executable = "arf",        -- Command name or executable path
-  pid = nil,                 -- nil: start a session; number: use an existing session
+  executable = "arf",         -- Command name or executable path
+  pid = nil,                  -- nil: start a session; number: use an existing session
   startup_timeout = 10000,    -- Session startup timeout in milliseconds
-  eval_timeout = 300000,       -- IPC response timeout in milliseconds
+  eval_timeout = 300000,      -- IPC response timeout in milliseconds
 
   -- Image display limits in terminal cells
   image_max_width = 100,      -- Maximum columns
@@ -217,8 +215,8 @@ require("arf").setup({
   inline_max_lines = 20,      -- Inline body lines, excluding notices and images
   output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
   -- Shared by ArfOutput and object inspections
-  float_width = "60%",       -- "auto", positive integer, or "1%" to "100%"
-  float_max_height = 30,     -- Maximum rows; shrinks for short output
+  float_width = "60%",        -- "auto", positive integer, or "1%" to "100%"
+  float_max_height = 30,      -- Maximum rows; shrinks for short output
 
   -- Execution signs
   signs = {
@@ -228,7 +226,7 @@ require("arf").setup({
     success = { text = "", hl = "ArfSignSuccess" },
     error = { text = "", hl = "ArfSignError" },
     running = {
-      text = "…",            -- Initial symbol; also used when animation is disabled
+      text = "…",             -- Initial symbol; also used when animation is disabled
       hl = "ArfSignRunning",
       frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
       interval = 80,          -- Frame interval in milliseconds
@@ -250,21 +248,7 @@ require("arf").setup({
 
 Plots are stacked in generation order. `image_max_width` / `image_max_height` cap each image's display size in cells; `plot_width_px` / `plot_height_px` / `plot_dpi` set PNG dimensions in pixels and resolution in dpi. The window also constrains display size.
 
-PNG settings require positive integers and re-evaluation. Increasing pixels and DPI proportionally may improve sharpness while preserving displayed text and line sizes.
-
-### Renamed settings
-
-Settings now describe what they control. Update existing configurations:
-
-- `output_max_lines` → `inline_max_lines`
-- `output_width` / `inspect_width` → `float_width`
-- `output_max_height` / `inspect_max_height` → `float_max_height`
-- `image_width` / `image_height` → `image_max_width` / `image_max_height`
-- `plot_width` / `plot_height` / `plot_res` → `plot_width_px` / `plot_height_px` / `plot_dpi`
-- `timeout` → `eval_timeout`
-- `tibble_width = math.huge` → `tibble_width = "all"`
-
-Old setting names produce an error naming their replacement. Tibble width defaults to `"auto"` and float width to `"60%"`. Both floats share a maximum height of 30 rows. Tibble row settings apply only to tibbles. Finite tibble widths also temporarily set R's `width`, which affects other printed output.
+PNG settings take effect on re-evaluation. Increasing pixels and DPI proportionally may improve sharpness while preserving displayed text and line sizes.
 
 ### Output and floats
 
@@ -283,16 +267,14 @@ This prints up to 100 tibble rows and shows the first 20 lines inline. Read the 
 - `inline_max_lines`: inline body lines, excluding separators, notices, and images.
 - `tibble_max_rows`: maximum tibble rows to print. The default `false` preserves R's settings. For individual expressions, use `print(df, n = 100)` or `print(df, n = 100, width = Inf)` to include omitted columns too. An explicit `n` takes precedence.
 - `output_max_bytes`: retained text per evaluation (default 1 MiB), including stdout, stderr, and errors but excluding images. If a retention-limit notice appears, increase it and rerun. This does not limit R's memory usage.
-- `tibble_width`: `false` preserves R's settings; `"auto"` uses the source window's text width at execution start (excluding gutters); a positive integer sets the output width in characters; `"all"` prints all columns. Finite widths show one tier and omit columns that do not fit. `"all"` may be stacked in multiple tiers by tibble. An explicit `print(..., width = ...)` takes precedence. Resizing requires re-evaluation.
-- `float_width` / `float_max_height`: shared float size for saved output, summary, and other inspections. `float_width = "auto"` uses the editor width minus borders and margins when opened; a positive integer specifies columns; a string such as `"90%"` specifies a percentage of the full editor width (integer 1–100%). Percentages are recalculated when opened and rounded down. Floats fit the screen and shrink vertically for short output. Images appear only inline.
+- `tibble_width`: `false` preserves R's settings; `"auto"` uses the source window's text width at execution start (excluding gutters); a positive integer sets the output width in characters; `"all"` prints all columns. Finite widths show one tier, omit columns that do not fit, and also set R's `width`, affecting other printed output. `"all"` may be stacked in multiple tiers by tibble. An explicit `print(..., width = ...)` takes precedence. Resizing requires re-evaluation.
+- `float_width` / `float_max_height`: shared float size for saved output, summary, and other inspections. `float_width = "auto"` uses the editor width minus borders and margins when opened; a positive integer specifies columns; a string such as `"90%"` specifies a percentage of the editor width (integer 1–100%). Floats fit the screen and shrink vertically for short output. Images appear only inline.
 
-Numeric values require positive integers. `inline_max_lines` applies on the next display refresh; float sizes apply when reopened. Changes to `tibble_max_rows`, `tibble_width`, and `output_max_bytes` require re-evaluation.
+Numeric values, including PNG settings, require positive integers. `inline_max_lines` applies on the next display refresh; float sizes apply when reopened. Changes to `tibble_max_rows`, `tibble_width`, and `output_max_bytes` require re-evaluation.
 
-`tibble_max_rows` and `tibble_width` also apply to object inspections. It temporarily sets `pillar.print_max` / `pillar.print_min` / `pillar.width` (and R's `width` for finite widths) and restores their previous values after evaluation, including changes made by the evaluated code.
+`tibble_max_rows` and `tibble_width` also apply to object inspections. The R options they set are restored after each evaluation.
 
 ### Signs
-
-Set symbols through `signs.range.text`, `signs.success.text`, `signs.error.text`, or `signs.running.text`. The default success and error icons require a Nerd Font.
 
 | Option | Description |
 | --- | --- |
@@ -316,7 +298,19 @@ require("arf").setup({
 })
 ```
 
-The spinner appears on the last line of the running range. Set `signs.running.text = ""` to hide it. Configuration changes apply to subsequent runs. If signs are hidden, check `:set signcolumn=yes`.
+The spinner appears on the last line of the running range. Configuration changes apply to subsequent runs. If signs are hidden, check `:set signcolumn=yes`.
+
+### Renamed settings
+
+Settings renamed in v0.5.0 raise an error naming their replacement:
+
+- `output_max_lines` → `inline_max_lines`
+- `output_width` / `inspect_width` → `float_width`
+- `output_max_height` / `inspect_max_height` → `float_max_height`
+- `image_width` / `image_height` → `image_max_width` / `image_max_height`
+- `plot_width` / `plot_height` / `plot_res` → `plot_width_px` / `plot_height_px` / `plot_dpi`
+- `timeout` → `eval_timeout`
+- `tibble_width = math.huge` → `tibble_width = "all"`
 
 ## API
 
@@ -325,20 +319,20 @@ Commands and custom keymaps can use the same Lua API:
 ```lua
 local arf = require("arf")
 
-arf.run()          -- Run the top-level expression containing the cursor
-arf.run_all()      -- Run all top-level expressions in the current buffer in order
-arf.run(3, 5)       -- Run complete lines 3–5 (1-based, inclusive)
-arf.clear()        -- Clear current-buffer results, images, and signs; keep R objects
-arf.clear(bufnr)   -- Clear a buffer; 0 means the current buffer
+arf.setup(opts)       -- Configure the plugin; see Configuration
+arf.run()             -- Run the top-level expression containing the cursor
+arf.run(3, 5)         -- Run complete lines 3–5 (1-based, inclusive)
+arf.run_all()         -- Run all top-level expressions in the current buffer in order
+arf.clear()           -- Clear current-buffer results, images, and signs; keep R objects
+arf.clear(bufnr)      -- Clear a buffer; 0 means the current buffer
 arf.inspect(fn, opts) -- Call an R function on the object under the cursor; opts.title is optional
-arf.summary()        -- Shorthand for arf.inspect("base::summary")
-arf.output()       -- Show saved output at the cursor without evaluating R again
-arf.stop()         -- Terminate the owned session and clear results in all buffers
+arf.summary()         -- Shorthand for arf.inspect("base::summary")
+arf.output()          -- Show saved output at the cursor without evaluating R again
+arf.copy_plot()       -- Copy the most recent plot image to the clipboard
+arf.stop()            -- Terminate the owned session and clear results in all buffers
 ```
 
-R evaluation through `run`, `run_all`, `inspect`, and the `summary` shorthand is asynchronous. See [Object inspection](#object-inspection) for custom keymaps and title options.
-
-`clear` does not interrupt running R code. Use `stop` to terminate the owned session. See [Configuration](#configuration) for `setup(opts)` options and defaults.
+R evaluation through `run`, `run_all`, `inspect`, and `summary` is asynchronous. `clear` does not interrupt running R code; use `stop` to terminate the owned session.
 
 ## Highlights
 
@@ -355,7 +349,7 @@ require("arf").setup({ theme = "default" })
 -- Use "auto" to follow the colorscheme, or "neon" for neon colors.
 ```
 
-Repeated `setup()` calls switch themes immediately. All themes preserve custom `Arf*` definitions; customize individual groups with `nvim_set_hl()` after setup. Theme defaults are reapplied on `ColorScheme` and `background` changes. The defaults below describe `"auto"`.
+Repeated `setup()` calls switch themes immediately. Themes preserve custom `Arf*` definitions supplied by the user or colorscheme. The defaults below describe `"auto"`.
 
 | Group | Purpose | Auto theme default |
 | --- | --- | --- |
@@ -383,7 +377,7 @@ Repeated `setup()` calls switch themes immediately. All themes preserve custom `
 
 In the `"auto"` theme, colors come from standard colorscheme groups. When RGB foreground or background is unavailable, output links to its source group and the separator links to `NonText`.
 
-To set your own colors:
+To set your own colors, reapply them on `ColorScheme` because `:colorscheme` clears highlights:
 
 ```lua
 local function arf_colors()
