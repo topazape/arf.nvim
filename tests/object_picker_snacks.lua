@@ -7,7 +7,12 @@ if vim.fn.filereadable(root .. "/lua/snacks/picker/init.lua") ~= 1 then
 end
 vim.opt.rtp:append(root)
 local original_select = vim.ui.select
-require("snacks").setup({ picker = { enabled = false } })
+require("snacks").setup({
+	picker = {
+		enabled = false,
+		win = { input = { keys = { ["<Esc>"] = { "close", mode = { "n", "i" } } } } },
+	},
+})
 local calls, refreshes = {}, 0
 local main = vim.api.nvim_get_current_win()
 local function wait_for(predicate, message)
@@ -48,6 +53,7 @@ end
 
 local picker = open()
 keys("iapm<Esc>")
+assert(not picker.closed and vim.fn.mode() == "n", "Esc enters normal mode despite global close mapping")
 wait_for(function()
 	return picker.input.filter.pattern == "apm" and not picker:is_active() and picker.list:count() == 1
 end, "fuzzy search matches names, not metadata")
@@ -79,5 +85,17 @@ picker = open()
 keys("q")
 closed(picker)
 assert(#calls == 2, "quit does not inspect")
+-- The override belongs only to Object Picker.
+local other = require("snacks.picker").pick({
+	items = { { text = "other" } },
+	format = "text",
+	layout = { preset = "select" },
+})
+wait_for(function()
+	return other.shown and not other:is_active()
+end, "other picker opens")
+vim.cmd("stopinsert")
+keys("i<Esc>")
+closed(other)
 assert(vim.ui.select == original_select, "Object Picker does not replace vim.ui.select")
 print("real Snacks picker search and key tests passed")

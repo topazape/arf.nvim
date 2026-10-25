@@ -140,7 +140,7 @@ These commands are available directly; the keys shown are configured by the Inst
 
 Use `:ArfObjects` or `require("arf").objects()` to fuzzy search names in the current session's `.GlobalEnv` with Snacks.picker. Rows show the name, class, and dimensions or length when available. This feature requires Snacks.picker.
 
-- Type a name in insert mode; `<CR>` runs `summary()`.
+- Type a name in insert mode; `<CR>` runs `summary()`. Press `<Esc>` to enter normal mode.
 - In normal mode, `p` runs `print()`, `r` refreshes the list, and `q` closes it.
 - Results use the existing float. `ArfOutput` separately reopens saved execution output.
 - The list reflects the session when the Picker opens. Dot-prefixed names are omitted.

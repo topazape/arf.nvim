@@ -49,7 +49,20 @@ function M.open(items, load, inspect)
 				end)
 			end,
 		},
-		win = { input = { keys = keys }, list = { keys = keys } },
+		win = {
+			input = {
+				keys = vim.tbl_extend("force", keys, {
+					["<Esc>"] = {
+						function()
+							vim.cmd.stopinsert()
+						end,
+						mode = "i",
+						desc = "Normal mode",
+					},
+				}),
+			},
+			list = { keys = keys },
+		},
 	})
 end
 
