@@ -260,7 +260,7 @@ Settings now describe what they control. Update existing configurations:
 - `timeout` → `eval_timeout`
 - `tibble_width = math.huge` → `tibble_width = "all"`
 
-Old setting names produce an error naming their replacement. Tibble and float widths now default to `"auto"`. Both floats share a maximum height of 30 rows. Tibble settings apply only to tibbles, not ordinary data frames.
+Old setting names produce an error naming their replacement. Tibble and float widths now default to `"auto"`. Both floats share a maximum height of 30 rows. Tibble row settings apply only to tibbles. Finite tibble widths also temporarily set R's `width`, which affects other printed output.
 
 ### Output and floats
 
@@ -279,12 +279,12 @@ This prints up to 100 tibble rows and shows the first 20 lines inline. Read the 
 - `inline_max_lines`: inline body lines, excluding separators, notices, and images.
 - `tibble_max_rows`: maximum tibble rows to print. The default `false` preserves R's settings. For individual expressions, use `print(df, n = 100)` or `print(df, n = 100, width = Inf)` to include omitted columns too. An explicit `n` takes precedence.
 - `output_max_bytes`: retained text per evaluation (default 1 MiB), including stdout, stderr, and errors but excluding images. If a retention-limit notice appears, increase it and rerun. This does not limit R's memory usage.
-- `tibble_width`: `false` preserves R's settings; `"auto"` uses the source window's text width at execution start (excluding gutters); a positive integer sets the output width in characters; `"all"` prints all columns. Wide output may be stacked in multiple tiers by tibble. An explicit `print(..., width = ...)` takes precedence. Resizing requires re-evaluation.
+- `tibble_width`: `false` preserves R's settings; `"auto"` uses the source window's text width at execution start (excluding gutters); a positive integer sets the output width in characters; `"all"` prints all columns. Finite widths show one tier and omit columns that do not fit. `"all"` may be stacked in multiple tiers by tibble. An explicit `print(..., width = ...)` takes precedence. Resizing requires re-evaluation.
 - `float_width` / `float_max_height`: shared float size for saved output, summary, and other inspections. `float_width = "auto"` uses the editor width minus borders and margins when opened; a positive integer specifies columns. Floats fit the screen and shrink vertically for short output. Images appear only inline.
 
 Numeric values require positive integers. `inline_max_lines` applies on the next display refresh; float sizes apply when reopened. Changes to `tibble_max_rows`, `tibble_width`, and `output_max_bytes` require re-evaluation.
 
-`tibble_max_rows` and `tibble_width` also apply to object inspections. It temporarily sets `pillar.print_max` / `pillar.print_min` / `pillar.width` and restores their previous values after evaluation, including changes made by the evaluated code.
+`tibble_max_rows` and `tibble_width` also apply to object inspections. It temporarily sets `pillar.print_max` / `pillar.print_min` / `pillar.width` (and R's `width` for finite widths) and restores their previous values after evaluation, including changes made by the evaluated code.
 
 ### Signs
 

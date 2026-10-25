@@ -52,7 +52,12 @@ local({
       .arf_options$pillar.print_max <- .arf_tibble_rows
       .arf_options$pillar.print_min <- .arf_tibble_rows
     }
-    if (!is.null(.arf_tibble_width)) .arf_options$pillar.width <- .arf_tibble_width
+    if (!is.null(.arf_tibble_width)) {
+      .arf_options$pillar.width <- .arf_tibble_width
+      # pillar uses width for each tier and pillar.width for the total width.
+      # Keep finite widths in one tier. R restricts width to 10..10000.
+      if (is.finite(.arf_tibble_width)) .arf_options$width <- max(10, min(10000, .arf_tibble_width))
+    }
     if (length(.arf_options)) .arf_previous_options <- options(.arf_options)
     grDevices::png(%s, width = %d, height = %d, units = "px", res = %d)
     .arf_device <- grDevices::dev.cur()

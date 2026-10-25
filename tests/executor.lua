@@ -102,12 +102,12 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 		)
 		executor.eval(source, settings, function() end)
 		local code = table.concat({
-			"options(pillar.print_max = 7, pillar.print_min = NULL, pillar.width = NULL)",
-			'old <- options()[c("pillar.print_max", "pillar.print_min", "pillar.width")]',
+			"options(width = 40, pillar.print_max = 7, pillar.print_min = NULL, pillar.width = NULL)",
+			'old <- options()[c("width", "pillar.print_max", "pillar.print_min", "pillar.width")]',
 			"captured <- capture.output(tryCatch({",
 			options.stdin,
 			"}, error = function(e) NULL))",
-			'stopifnot(identical(options()[c("pillar.print_max", "pillar.print_min", "pillar.width")], old))',
+			'stopifnot(identical(options()[c("width", "pillar.print_max", "pillar.print_min", "pillar.width")], old))',
 			assertions or "",
 		}, "\n")
 		local reply = original({ "Rscript", "--vanilla", "-" }, { text = true, stdin = code }):wait(30000)
@@ -116,7 +116,10 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 	end
 	rcheck('stopifnot(getOption("pillar.print_max") == 100, getOption("pillar.print_min") == 100)', 100)
 	rcheck('stop("expected")', 100)
-	rcheck('stopifnot(getOption("pillar.width") == 160)', false, nil, 160)
+	rcheck('stopifnot(getOption("pillar.width") == 160, getOption("width") == 160)', false, nil, 160)
+	rcheck('stopifnot(getOption("width") == getOption("pillar.width")); options(width = 25); stop("expected")', false, nil, "auto")
+	rcheck('stopifnot(getOption("width") == 10)', false, nil, 1)
+	rcheck('stopifnot(getOption("width") == 10000)', false, nil, 20000)
 	rcheck(
 		'stopifnot(is.infinite(getOption("pillar.width"))); options(pillar.width = 20); stop("expected")',
 		100,
@@ -125,6 +128,14 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 	)
 	rcheck('stopifnot(is.null(getOption("pillar.width")))', false)
 	local wide = 'tibble::as_tibble(setNames(rep(list(1:2), 12), paste0("column", 1:12)))'
+	for _, width in ipairs({ "auto", 80 }) do
+		rcheck(
+			'if (requireNamespace("tibble", quietly = TRUE)) ' .. wide,
+			100,
+			'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(sum(grepl("<int>", captured, fixed = TRUE)) == 1L, any(grepl("more variables", captured)))',
+			width
+		)
+	end
 	rcheck(
 		'if (requireNamespace("tibble", quietly = TRUE)) ' .. wide,
 		100,
