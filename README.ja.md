@@ -31,7 +31,6 @@
 - **Neovim 0.12+**
 - **R と [arf](https://github.com/eitsupi/arf)** — arf の導入手順に従ってインストールし、`arf` を PATH に通してください。実行ファイルのパスも設定できます。arf 0.6.0 で検証済み。
 - **R の Tree-sitter パーサー** — `ArfRun` の通常モードの式判定と `ArfRunAll` に使用。利用中のパーサーマネージャーで `r` を導入してください。Visual 選択・明示的な行範囲の実行には不要です。
-- **Nerd Font** — 既定の成功・エラーアイコンに使用。通常の Unicode 記号に変更する場合は不要です（[Signs](#signs)）。
 
 画像表示には、次も必要です。
 
@@ -227,8 +226,8 @@ require("arf").setup({
     enabled = true,           -- Set false to hide all execution signs
     priority = 5,             -- Higher values take precedence
     range = { text = "│", hl = "ArfSignRange" },
-    success = { text = "", hl = "ArfSignSuccess" },
-    error = { text = "", hl = "ArfSignError" },
+    success = { text = "│", hl = "ArfSignSuccess" },
+    error = { text = "│", hl = "ArfSignError" },
     running = {
       text = "…",             -- Initial symbol; also used when animation is disabled
       hl = "ArfSignRunning",
@@ -290,7 +289,9 @@ opts = {
 | `signs.running.frames` | 実行中に順番に表示する記号のリスト。各コマも幅 1〜2 セルにします。2 コマ以上ならアニメーションし、空リスト `{}` または 1 コマなら `running.text` の静止表示です。 |
 | `signs.running.interval` | 更新間隔の正の整数（ミリ秒）。既定は 80。 |
 
-Nerd Font を使わない場合は、`text` を通常の Unicode 記号に変更できます。
+既定では成功・エラーとも範囲の全行に `│` を表示し、`signs.success.hl` または `signs.error.hl` で範囲全体を色分けします。実行中も範囲全体に `signs.running.hl` を使い、最終行にスピナーを表示します。Nerd Font は不要です。`signs.range.hl` と `ArfSignRange` は互換性のために残していますが、範囲の色には使いません。
+
+最終行だけ異なる記号にすることもできます。
 
 ```lua
 require("arf").setup({
@@ -375,7 +376,7 @@ require("arf").setup({ theme = "default" })
 | `ArfSignRunning` | 実行中のマーク | `DiagnosticInfo` |
 | `ArfError` | 実行エラー | `DiagnosticError` |
 | `ArfWarning` | 画像表示などの案内 | `DiagnosticWarn` |
-| `ArfSignRange` | 実行範囲の `│` | `ArfSeparator` |
+| `ArfSignRange` | 互換性のために残した範囲ハイライト（未使用） | `ArfSeparator` |
 | `ArfSignSuccess` | 実行成功のマーク | `DiagnosticOk` |
 | `ArfSignError` | 実行エラーのマーク | `DiagnosticError` |
 

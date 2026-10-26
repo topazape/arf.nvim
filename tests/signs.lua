@@ -6,6 +6,7 @@ vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "a", "b", "c" })
 local function marks()
 	return vim.api.nvim_buf_get_extmarks(buf, signs.namespace, 0, -1, { details = true })
 end
+assert(arf.config.signs.success.text == "│" and arf.config.signs.error.text == "│")
 arf.setup({ signs = { enabled = false } })
 assert(#signs.place(buf, 0, 2, false, true) == 0 and #marks() == 0)
 arf.setup({
@@ -26,7 +27,9 @@ for _, case in ipairs({
 	local ids = signs.place(buf, 0, 2, case[1], case[2])
 	local placed = marks()
 	assert(#placed == 3 and placed[1][4].sign_text:match("^|"))
-	assert(placed[1][4].sign_hl_group == "Comment")
+	for _, mark in ipairs(placed) do
+		assert(mark[4].sign_hl_group == case[4], "entire range uses the execution status color")
+	end
 	assert(placed[3][4].sign_text:sub(1, 1) == case[3] and placed[3][4].sign_hl_group == case[4])
 	assert(placed[3][4].priority == 17 and ids.timer == nil)
 	signs.clear(buf, ids)

@@ -20,8 +20,8 @@ M.config = {
 		enabled = true,
 		priority = 5,
 		range = { text = "│", hl = "ArfSignRange" },
-		success = { text = "", hl = "ArfSignSuccess" },
-		error = { text = "", hl = "ArfSignError" },
+		success = { text = "│", hl = "ArfSignSuccess" },
+		error = { text = "│", hl = "ArfSignError" },
 		running = {
 			text = "…",
 			hl = "ArfSignRunning",
