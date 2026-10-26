@@ -3,6 +3,17 @@ vim.opt.rtp:prepend(vim.fn.getcwd())
 local executor = require("arf.executor")
 local config = vim.tbl_extend("force", require("arf").config, { pid = 42, output_max_bytes = 8 })
 local original = vim.system
+local original_hrtime = vim.uv.hrtime
+local now = 1000000000
+vim.uv.hrtime = function()
+	return now
+end
+local original_limit = require("arf.output").limit
+require("arf.output").limit = function(...)
+	local value = original_limit(...)
+	now = now + 7000000 -- Include result processing in the measured interval.
+	return value
+end
 local pending, args, options, dir, killed, result, failure
 local checks = 0
 local function check(value, message)
@@ -43,7 +54,9 @@ check(
 vim.fn.writefile({}, dir .. "/plot-000000002.png")
 vim.fn.writefile({}, dir .. "/plot-000000001.png")
 vim.fn.writefile({}, dir .. "/truncated")
+now = now + 135000000
 finish(0, vim.json.encode({ stdout = "abc", stderr = "def", error = "日本" }))
+check(result.elapsed_ms == 142, "R errors retain elapsed time including result processing")
 check(result.text == "abcdef" and result.error == "" and result.truncated, "decode and limit combined output and error")
 check(
 	vim.deep_equal(result.paths, { dir .. "/plot-000000001.png", dir .. "/plot-000000002.png" }),
@@ -74,6 +87,7 @@ finish(0, "{}")
 check(result == nil and failure == nil, "late completion after cancel does not reach consumer")
 start()
 finish(0, '{"stdout":false,"stderr":12,"error":false}')
+check(result.elapsed_ms == 7, "independent evaluation starts a fresh clock, including empty output")
 check(result.text == "" and result.error == nil, "ignore non-string response fields")
 result.cleanup()
 vim.system = function(_, opts)
@@ -117,7 +131,12 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 	rcheck('stopifnot(getOption("pillar.print_max") == 100, getOption("pillar.print_min") == 100)', 100)
 	rcheck('stop("expected")', 100)
 	rcheck('stopifnot(getOption("pillar.width") == 160, getOption("width") == 160)', false, nil, 160)
-	rcheck('stopifnot(getOption("width") == getOption("pillar.width")); options(width = 25); stop("expected")', false, nil, "auto")
+	rcheck(
+		'stopifnot(getOption("width") == getOption("pillar.width")); options(width = 25); stop("expected")',
+		false,
+		nil,
+		"auto"
+	)
 	rcheck('stopifnot(getOption("width") == 10)', false, nil, 1)
 	rcheck('stopifnot(getOption("width") == 10000)', false, nil, 20000)
 	rcheck(
@@ -166,4 +185,6 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 	)
 end
 vim.system = original
+vim.uv.hrtime = original_hrtime
+require("arf.output").limit = original_limit
 print("executor tests passed (" .. checks .. " checks)")

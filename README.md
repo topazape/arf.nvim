@@ -187,6 +187,7 @@ Supply trusted R code. Functions already defined in the R session can also be pa
 ### Execution and sessions
 
 - Automatic selection requires a syntactically complete buffer. Inside a function or loop, it selects the whole definition or loop; expressions sharing a line are selected by cursor position. Blank lines and comments outside expressions have nothing to run.
+- `ArfRun` / `ArfRunAll` show per-expression wall-clock time, including IPC and result processing but excluding initial session startup.
 - `ArfRunAll` runs top-level expressions in the existing session, stopping at the first R error or IPC failure. Completed results and existing results not reached remain. `:%ArfRun` evaluates the buffer as one range, with combined output at the end.
 - Results appear below the executed range. Editing keeps the previous output dimmed and removes execution signs. Rerunning replaces the result; deleting the entire range removes it. Other ranges do not update automatically: rerun dependent expressions after changing data or variables.
 - Editing, clearing, or unloading the source buffer while evaluation is pending discards its result and stops subsequent expressions, without interrupting R.
@@ -365,6 +366,8 @@ Repeated `setup()` calls switch themes immediately. Themes preserve custom `Arf*
 
 | Group | Purpose | Auto theme default |
 | --- | --- | --- |
+| `ArfElapsed` | execution time | `DiagnosticInfo` |
+| `ArfElapsedStale` | execution time after editing its source | same as `ArfOutputStale` |
 | `ArfOutput` | normal output | `Normal` foreground blended with 15% background |
 | `ArfOutputStale` | normal output after editing its source | `Normal` foreground blended with 50% background; `Comment` fallback |
 | `ArfSeparator` | full-width rule before inline output | `Normal` foreground blended with 75% background |

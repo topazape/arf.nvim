@@ -17,12 +17,14 @@ for _, colors in ipairs({ { 0xffffff, 0x000000 }, { 0x000000, 0xffffff } }) do
 	vim.api.nvim_set_hl(0, "Normal", { fg = colors[1], bg = colors[2] })
 	vim.api.nvim_set_hl(0, "NormalFloat", { fg = colors[1], bg = colors[2] })
 	vim.api.nvim_exec_autocmds("ColorScheme", {})
+	assert(get("ArfElapsedStale").fg == 0x808080, "auto dims elapsed time")
 	assert(get("ArfOutputStale").fg == 0x808080, "stale output blends toward background")
 	assert(get("ArfFloatOutputStale").fg == 0x808080, "stale float blends toward background")
 	assert(get("ArfOutput").fg == (colors[1] == 0xffffff and 0xd9d9d9 or 0x262626))
 	assert(get("ArfSeparator").fg == (colors[1] == 0xffffff and 0x404040 or 0xbfbfbf))
 	assert(get("ArfFloatOutput").fg == (colors[1] == 0xffffff and 0xf2f2f2 or 0x0d0d0d))
 	for group, source in pairs({
+		ArfElapsed = "DiagnosticInfo",
 		ArfMessage = "DiagnosticInfo",
 		ArfSignRunning = "DiagnosticInfo",
 		ArfSignSuccess = "DiagnosticOk",
@@ -42,6 +44,7 @@ vim.api.nvim_set_hl(0, "Normal", { fg = 0xabcdef })
 vim.api.nvim_set_hl(0, "NormalFloat", { link = "Normal" })
 highlights.apply()
 assert(get("ArfOutput", true).link == "Normal", "transparent output follows Normal")
+assert(get("ArfElapsedStale", true).link == "Comment", "transparent stale timing uses Comment")
 assert(get("ArfOutputStale", true).link == "Comment", "transparent stale output uses Comment")
 assert(get("ArfFloatOutputStale", true).link == "Comment", "transparent stale float uses Comment")
 assert(get("ArfSeparator", true).link == "NonText", "transparent separator follows NonText")
@@ -51,6 +54,8 @@ for _, background in ipairs({ "dark", "light" }) do
 	vim.o.background = background
 	local original_normal = get("Normal")
 	arf.setup({ theme = "default" })
+	assert(get("ArfElapsed").fg == (background == "dark" and 0x8daed1 or 0x3f668d))
+	assert(get("ArfElapsedStale").fg ~= get("ArfElapsed").fg, "default dims elapsed time")
 	assert(get("ArfFloatNormal").bg == (background == "dark" and 0x262626 or 0xf5f5f5))
 	assert(get("ArfOutputStale").fg ~= get("ArfOutput").fg, "default stale output is distinct")
 	assert(get("ArfFloatOutputStale").fg ~= get("ArfFloatOutput").fg, "default stale float is distinct")
@@ -71,6 +76,8 @@ for _, background in ipairs({ "dark", "light" }) do
 			assert(neon[name].fg and not neon[name].link, name .. " has a fixed neon color")
 		end
 	end
+	assert(neon.ArfElapsed.fg == (background == "dark" and 0x38e8ff or 0x007f99))
+	assert(neon.ArfElapsedStale.fg ~= neon.ArfElapsed.fg, "neon dims elapsed time")
 	assert(neon.ArfFloatNormal.bg == (background == "dark" and 0x1b102b or 0xf5ecff))
 	assert(neon.ArfFloatTitle.fg == neon.ArfFloatBorder.fg, "neon titles match the pink border")
 	assert(neon.ArfSignRunning.fg ~= neon.ArfSignSuccess.fg, "running and success remain distinct")
@@ -109,6 +116,13 @@ arf.setup({ theme = "neon" })
 assert(get("ArfFloatBorder").fg == 0x123456, "neon preserves custom highlights")
 arf.setup({ theme = "auto" })
 assert(get("ArfFloatBorder").fg == 0x123456, "returning to auto preserves custom highlights")
+vim.api.nvim_set_hl(0, "ArfElapsed", { fg = 0x123456 })
+vim.api.nvim_set_hl(0, "ArfElapsedStale", { fg = 0x654321 })
+for _, theme in ipairs({ "default", "neon", "auto" }) do
+	arf.setup({ theme = theme })
+	assert(get("ArfElapsed").fg == 0x123456, "preserve custom timing color")
+	assert(get("ArfElapsedStale").fg == 0x654321, "preserve custom stale timing color")
+end
 -- OptionSet is suppressed during startup (-l). Run after startup in a child
 -- editor to test actual :set background changes, without synthesizing events.
 local background_test = [[

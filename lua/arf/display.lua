@@ -12,6 +12,16 @@ function M.release(entry)
 	entry.plots = nil
 end
 
+local function elapsed_text(ms)
+	if ms < 1000 then
+		return string.format("%dms", math.floor(ms + 0.5))
+	elseif ms < 60000 then
+		return string.format("%.2fs", ms / 1000)
+	end
+	local seconds = math.floor(ms / 1000)
+	return string.format("%dm %ds", math.floor(seconds / 60), seconds % 60)
+end
+
 local function set_lines(buf, entry, lines)
 	if not vim.api.nvim_buf_is_loaded(buf) then
 		return
@@ -19,6 +29,11 @@ local function set_lines(buf, entry, lines)
 	vim.api.nvim_buf_set_extmark(buf, require("arf.results").namespace, entry.last, 0, {
 		id = entry.mark,
 		virt_lines = lines,
+		virt_text = entry.result.elapsed_ms and {
+			{ elapsed_text(entry.result.elapsed_ms), entry.stale and "ArfElapsedStale" or "ArfElapsed" },
+		} or {},
+		-- Let Neovim align per window and clip after EOL, without covering code.
+		virt_text_pos = "eol_right_align",
 	})
 end
 

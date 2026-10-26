@@ -49,11 +49,12 @@ vim.notify = function(message)
 	notices[#notices + 1] = message
 end
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "x <- 1", "print(x)" })
-local function complete(err)
+local function complete(err, elapsed_ms)
 	local cb = table.remove(callbacks, 1)
 	assert(cb)
 	cb({
 		text = "",
+		elapsed_ms = elapsed_ms,
 		error = err,
 		cleanup = function()
 			cleaned = cleaned + 1
@@ -83,9 +84,10 @@ local busy_tick = vim.api.nvim_buf_get_changedtick(0)
 arf.run_all()
 assert(vim.api.nvim_buf_get_changedtick(0) == busy_tick, "busy request does not edit buffer")
 assert(#codes == 1 and #notices == 1, "busy guard")
-complete()
+complete(nil, 142)
 assert(#codes == 2 and entries[1][1] == 0)
-complete()
+complete(nil, 2430)
+assert(entries[1][2].elapsed_ms == 142 and entries[2][2].elapsed_ms == 2430, "retain separate expression timings")
 assert(#entries == 2 and entries[2][1] == 1)
 reset()
 arf.run_all()
