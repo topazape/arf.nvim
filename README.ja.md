@@ -51,7 +51,7 @@ return {
   "topazape/arf.nvim",
   version = "*",
   ft = "r",
-  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfOutput", "ArfCopyPlot", "ArfStop" },
+  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfObjects", "ArfOutput", "ArfCopyPlot", "ArfStop" },
   dependencies = {
     {
       "folke/snacks.nvim",
@@ -73,7 +73,7 @@ return {
 ```
 
 Snacks を既に設定している場合は、その設定に `image = { enabled = true }` を追加してください。
-テキスト出力だけを使う場合は `dependencies` を省略できます。
+画像表示と Object Picker を使わない場合は `dependencies` を省略できます。
 
 ## Usage
 
@@ -130,12 +130,22 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 | `:ArfRun` | `<LocalLeader>fr` | 通常モードで現在の式、Visual モードで選択した行全体を実行。`:3,5ArfRun` なら指定した行全体を実行。 |
 | `:ArfRunAll` | `<LocalLeader>fR` | 現在バッファのトップレベル式を順番に実行し、それぞれの直下に結果を表示。 |
 | `:ArfClear` | `<LocalLeader>fc` | 現在バッファの出力・画像・サインを削除。R の変数は残します。 |
+| `:ArfObjects` | — | 現在の R セッションのオブジェクトを検索して検査。 |
 | `:ArfSummary` | `<LocalLeader>fk` | カーソル下のオブジェクトに `base::summary()` を実行してフロート表示。 |
 | `:ArfOutput` | `<LocalLeader>fo` | カーソルを含む実行範囲の保存済み出力を開く。R は再実行しません。 |
 | `:ArfCopyPlot` | `<LocalLeader>fy` | 直近に生成した保存済みプロット画像をクリップボードにコピー。 |
 | `:ArfStop` | `<LocalLeader>fs` | 自動起動した arf を実行中でも終了し、全バッファの結果・サインを削除。次の実行は新しいセッションになります。`pid` 指定時は何も変更せず警告します。 |
 
 `:ArfCopyPlot` は全バッファから直近のプロット結果を探し、その最後の画像をコピーします。削除・置換された結果はコピーしません。
+
+### Object Picker
+
+`:ArfObjects` または `require("arf").objects()` で、現在のセッションの `.GlobalEnv` にあるオブジェクトを Snacks.picker で検索できます。名前・クラス・次元（または長さ）を表示します。Snacks.picker が必要です。
+
+- 挿入モードで名前を fuzzy search、`<CR>` で `summary()`。`<Esc>` で通常モードへ移ります。
+- 通常モードで `p` は `print()`、`r` は一覧の再取得、`q` は終了。
+- 結果は既存のフロートに表示します。`ArfOutput` の保存済み出力とは別です。
+- 一覧は Picker を開いた時点の内容です。ドットで始まる名前は表示しません。
 
 ### Object inspection
 
@@ -331,6 +341,7 @@ arf.run_all()         -- Run all top-level expressions in the current buffer in 
 arf.clear()           -- Clear current-buffer results, images, and signs; keep R objects
 arf.clear(bufnr)      -- Clear a buffer; 0 means the current buffer
 arf.inspect(fn, opts) -- Call an R function on the object under the cursor; opts.title is optional
+arf.objects()         -- Pick a global R object to inspect
 arf.summary()         -- Shorthand for arf.inspect("base::summary")
 arf.output()          -- Show saved output at the cursor without evaluating R again
 arf.copy_plot()       -- Copy the most recent plot image to the clipboard

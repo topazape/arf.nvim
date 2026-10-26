@@ -42,6 +42,32 @@ local ok, err = xpcall(function()
 	assert(value.error and value.error:find("expected failure", 1, true), "preserve R error")
 	value = run("arf_test_value + 2L")
 	assert(not value.error and value.text:find("43", 1, true), "evaluation recovers after R error")
+	-- Exercise metadata through the real output-capturing executor, including
+	-- restoration of its stdout and message sinks after method errors.
+	value = run([[
+arf_noisy <- structure(1, class = "arf_noisy")
+dim.arf_noisy <- function(x) {
+  base::cat("metadata stdout")
+  base::cat("metadata stderr", file = base::stderr())
+  message("metadata message")
+  stop("metadata failure")
+}
+ls <- get <- function(...) stop("masked function")
+]])
+	assert(not value.error)
+	local objects = require("arf.objects")
+	value = run(objects.code)
+	assert(not value.error)
+	local found
+	for _, item in ipairs(objects.decode(value.text)) do
+		if item.name == "arf_noisy" then
+			found = item
+		end
+	end
+	assert(found and found.class == "arf_noisy" and found.size == "", "metadata failures preserve objects")
+	value = run('base::rm(ls, get); cat("stdout restored"); message("stderr restored")')
+	assert(not value.error and value.text:find("stdout restored", 1, true))
+	assert(value.text:find("stderr restored", 1, true), "metadata collection restores executor sinks")
 	value = run("plot(lm(mpg ~ wt, data = mtcars))")
 	assert(not value.error and #value.paths == 4, "capture four plots through real IPC")
 	local paths = vim.deepcopy(value.paths)
