@@ -30,7 +30,6 @@ A Neovim plugin powered by [arf](https://github.com/eitsupi/arf). Run expression
 - **Neovim 0.12+**
 - **R and [arf](https://github.com/eitsupi/arf)** — Follow arf's installation instructions and put `arf` on your PATH, or configure its executable path. Tested with arf 0.6.0.
 - **R Tree-sitter parser** — Required for `ArfRun` expression detection in Normal mode and for `ArfRunAll`. Install `r` using your parser manager. Visual selections and explicit line ranges do not require the parser.
-- **Nerd Font** — Used by the default success and error icons. Optional if you replace them with ordinary Unicode characters; see [Signs](#signs).
 
 Inline plots additionally require:
 
@@ -233,8 +232,8 @@ require("arf").setup({
     enabled = true,           -- Set false to hide all execution signs
     priority = 5,             -- Higher values take precedence
     range = { text = "│", hl = "ArfSignRange" },
-    success = { text = "", hl = "ArfSignSuccess" },
-    error = { text = "", hl = "ArfSignError" },
+    success = { text = "│", hl = "ArfSignSuccess" },
+    error = { text = "│", hl = "ArfSignError" },
     running = {
       text = "…",             -- Initial symbol; also used when animation is disabled
       hl = "ArfSignRunning",
@@ -296,7 +295,9 @@ Numeric values, including PNG settings, require positive integers. `inline_max_l
 | `signs.running.frames` | animation frames, each 1–2 display cells wide. Two or more frames enable animation; an empty list `{}` or a single frame uses the static `running.text` instead. |
 | `signs.running.interval` | a positive frame interval in milliseconds; defaults to 80. |
 
-To use ordinary Unicode symbols without a Nerd Font:
+By default, successful and failed ranges use `│` on every line, colored by `signs.success.hl` or `signs.error.hl`. Running ranges use `signs.running.hl` throughout, with a spinner on the last line. Nerd Font is not required. `signs.range.hl` and `ArfSignRange` are retained for compatibility but no longer control range colors.
+
+To use distinct symbols on the final line:
 
 ```lua
 require("arf").setup({
@@ -382,7 +383,7 @@ Repeated `setup()` calls switch themes immediately. Themes preserve custom `Arf*
 | `ArfSignRunning` | running sign | `DiagnosticInfo` |
 | `ArfError` | execution errors | `DiagnosticError` |
 | `ArfWarning` | notices, including image display warnings | `DiagnosticWarn` |
-| `ArfSignRange` | the `│` range marker | `ArfSeparator` |
+| `ArfSignRange` | legacy range highlight (unused) | `ArfSeparator` |
 | `ArfSignSuccess` | success sign | `DiagnosticOk` |
 | `ArfSignError` | error sign | `DiagnosticError` |
 

@@ -106,7 +106,7 @@ function M.place(buf, first, last, failed, running)
 	local status = running and config.running or failed and config.error or config.success
 	for row = first, last do
 		local text = row == last and status.text or config.range.text
-		local hl = row == last and status.hl or config.range.hl
+		local hl = status.hl
 		if text ~= "" then
 			ids[#ids + 1] = vim.api.nvim_buf_set_extmark(buf, ns, row, 0, {
 				sign_text = text,
