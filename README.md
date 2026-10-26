@@ -13,7 +13,7 @@ A Neovim plugin powered by [arf](https://github.com/eitsupi/arf). Run expression
 [Features](#features) · [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [API](#api) · [Highlights](#highlights) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="R code, inline tibble output, and a ggplot scatter plot in Neovim with arf.nvim" width="720">
+  <img src="assets/inline-plot.png" alt="A ggplot scatter plot displayed below R code with per-expression execution times" width="720">
 </p>
 
 ## Features
@@ -137,6 +137,12 @@ These commands are available directly; the keys shown are configured by the Inst
 
 ### Object Picker
 
+<p align="center">
+  <img src="assets/object-picker.png" alt="ArfObjects picker listing R objects with their names, classes, and dimensions" width="720">
+  <br>
+  <em>Search and select objects in the current R session.</em>
+</p>
+
 Use `:ArfObjects` or `require("arf").objects()` to fuzzy search names in the current session's `.GlobalEnv` with Snacks.picker. Rows show the name, class, and dimensions or length when available. This feature requires Snacks.picker.
 
 - Type a name in insert mode; `<CR>` runs `summary()`. Press `<Esc>` to enter normal mode.
@@ -145,6 +151,12 @@ Use `:ArfObjects` or `require("arf").objects()` to fuzzy search names in the cur
 - The list reflects the session when the Picker opens. Dot-prefixed names are omitted.
 
 ### Object inspection
+
+<p align="center">
+  <img src="assets/object-summary.png" alt="Linear model summary shown in a floating window" width="720">
+  <br>
+  <em>Inspect a model summary alongside your code.</em>
+</p>
 
 To call an R function on the object under the cursor and show its text output in a float, add a callback to your keymaps:
 
