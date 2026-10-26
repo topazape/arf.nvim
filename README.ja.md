@@ -14,7 +14,7 @@
 [Features](#features) · [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [API](#api) · [Highlights](#highlights) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="arf.nvim で R コード、tibble の出力、ggplot の散布図を Neovim 内に表示" width="720">
+  <img src="assets/inline-plot.png" alt="R コードの直下に ggplot の散布図を表示し、式ごとの実行時間を確認" width="720">
 </p>
 
 ## Features
@@ -140,6 +140,12 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 
 ### Object Picker
 
+<p align="center">
+  <img src="assets/object-picker.png" alt="ArfObjects で R オブジェクトの名前・クラス・次元を一覧表示" width="720">
+  <br>
+  <em>セッション内のオブジェクトを検索して選択。</em>
+</p>
+
 `:ArfObjects` または `require("arf").objects()` で、現在のセッションの `.GlobalEnv` にあるオブジェクトを Snacks.picker で検索できます。名前・クラス・次元（または長さ）を表示します。Snacks.picker が必要です。
 
 - 挿入モードで名前を fuzzy search、`<CR>` で `summary()`。`<Esc>` で通常モードへ移ります。
@@ -148,6 +154,12 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 - 一覧は Picker を開いた時点の内容です。ドットで始まる名前は表示しません。
 
 ### Object inspection
+
+<p align="center">
+  <img src="assets/object-summary.png" alt="線形モデルの summary(model) をフロートで表示" width="720">
+  <br>
+  <em>モデルの要約を、コードを離れずに確認。</em>
+</p>
 
 カーソル下のオブジェクトに R 関数を実行し、テキスト出力をフロートで確認できます。キーマップには次のように設定します。
 
