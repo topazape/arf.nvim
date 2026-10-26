@@ -101,6 +101,8 @@ end
 
 local function apply_palette(palette)
 	local definitions = {
+		ArfElapsed = { fg = palette.info },
+		ArfElapsedStale = { fg = blend(palette.info, palette.float_bg, 0.55) },
 		ArfOutput = { fg = palette.output },
 		ArfOutputStale = { fg = blend(palette.output, palette.float_bg, 0.55) },
 		ArfSeparator = { fg = palette.separator },
@@ -138,6 +140,7 @@ function M.apply(selected_theme)
 		return apply_palette(neon_palette())
 	end
 	-- Defaults leave definitions supplied by a colorscheme or user intact.
+	blended_default("ArfElapsedStale", "Normal", 0.5, "Comment")
 	blended_default("ArfOutput", "Normal", 0.85)
 	blended_default("ArfOutputStale", "Normal", 0.5, "Comment")
 	blended_default("ArfSeparator", "Normal", 0.25, "NonText")
@@ -147,6 +150,7 @@ function M.apply(selected_theme)
 	local links = {
 		ArfFloatBorder = "FloatBorder",
 		ArfFloatTitle = "FloatTitle",
+		ArfElapsed = "DiagnosticInfo",
 		ArfMessage = "DiagnosticInfo",
 		ArfStderr = "DiagnosticWarn",
 		ArfSignRunning = "DiagnosticInfo",

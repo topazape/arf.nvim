@@ -111,6 +111,7 @@ local({
 	end
 	-- stdin avoids command-line size limits and shell interpretation.
 	local cancelled = false
+	local started = vim.uv.hrtime()
 	local ok, process = pcall(
 		vim.system,
 		args,
@@ -139,14 +140,16 @@ local({
 			)
 			local files = vim.fn.glob(dir .. "/plot-*.png", false, true)
 			table.sort(files)
-			callback(output.limit({
+			local result = output.limit({
 				text = text,
 				chunks = chunks,
 				truncated = vim.uv.fs_stat(dir .. "/truncated") ~= nil,
 				paths = files,
 				error = type(reply.error) == "string" and reply.error or nil,
 				cleanup = cleanup,
-			}, config.output_max_bytes))
+			}, config.output_max_bytes)
+			result.elapsed_ms = (vim.uv.hrtime() - started) / 1e6
+			callback(result)
 		end)
 	)
 	if not ok then

@@ -24,6 +24,7 @@ vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "x <- 1", "plot(x)" })
 local cleaned = 0
 local entry = results.put(buf, 1, 1, {
 	text = "text survives",
+	elapsed_ms = 2430,
 	paths = { "unused.png" },
 	cleanup = function()
 		cleaned = cleaned + 1
@@ -34,6 +35,11 @@ local function rendered()
 	return vim.api.nvim_buf_get_extmark_by_id(buf, results.namespace, entry.mark, { details = true })[3].virt_lines
 		or {}
 end
+local function timing()
+	return vim.api.nvim_buf_get_extmark_by_id(buf, results.namespace, entry.mark, { details = true })[3]
+end
+check(timing().virt_text_pos == "eol_right_align", "time aligns after code without overlay")
+check(timing().virt_text[1][1] == "2.43s", "time coexists with output and image warning")
 local lines = rendered()
 check(lines[2][1][1] == "text survives", "text displays without image dependency")
 check(lines[3][1][1]:find("snacks.nvim is required", 1, true), "missing backend has inline warning")
@@ -109,10 +115,55 @@ check(
 	rendered()[2][1][1] == "text survives" and rendered()[2][1][2] == "ArfOutputStale",
 	"dim stale image text without adding lines"
 )
+check(timing().virt_text[1][2] == "ArfElapsedStale", "source edit dims elapsed time")
 check(rendered()[1][1][2] == "ArfSeparator", "stale output keeps normal separator color")
 results.clear(buf)
 drain()
 check(closed == 1 and cleaned == 1, "clear releases image and evaluation resources")
+check(#vim.api.nvim_buf_get_extmarks(buf, results.namespace, 0, -1, {}) == 0, "clear removes timing mark")
+for _, case in ipairs({
+	{ 0, "0ms" },
+	{ 142, "142ms" },
+	{ 999, "999ms" },
+	{ 1000, "1.00s" },
+	{ 2430, "2.43s" },
+	{ 59990, "59.99s" },
+	{ 60000, "1m 0s" },
+	{ 84000, "1m 24s" },
+}) do
+	entry = results.put(buf, 0, 1, { text = "", elapsed_ms = case[1], cleanup = function() end })
+	drain()
+	check(timing().virt_text[1][1] == case[2] and #rendered() == 0, "format assignment timing: " .. case[2])
+	check(
+		vim.api.nvim_buf_get_extmark_by_id(buf, results.namespace, entry.mark, {})[1] == 1,
+		"timing anchors to final expression line"
+	)
+end
+vim.cmd("vsplit")
+local narrow = vim.api.nvim_get_current_win()
+vim.api.nvim_win_set_width(narrow, 12)
+vim.api.nvim_buf_set_lines(buf, 1, 2, false, { string.rep("long_code", 30) })
+vim.api.nvim_exec_autocmds("WinResized", {})
+drain()
+check(
+	timing().virt_text_pos == "eol_right_align" and #rendered() == 0,
+	"resize and long code retain native per-window clipping"
+)
+vim.api.nvim_win_close(narrow, true)
+entry = results.put(buf, 1, 1, { text = "", error = "failure", elapsed_ms = 142, cleanup = function() end })
+drain()
+check(timing().virt_text[1][1] == "142ms" and timing().virt_text[1][2] == "ArfElapsed", "R error shows fresh time")
+entry = results.start(buf, 1, 1)
+drain()
+check(timing().virt_text == nil, "rerun removes previous time while running")
+results.cancel(buf, entry)
+check(#vim.api.nvim_buf_get_extmarks(buf, results.namespace, 0, -1, {}) == 0, "cancel removes running mark")
+local deleted_buf = vim.api.nvim_create_buf(false, true)
+results.put(deleted_buf, 0, 0, { text = "", elapsed_ms = 142, cleanup = function() end })
+drain()
+vim.api.nvim_buf_delete(deleted_buf, { force = true })
+check(results.all()[deleted_buf] == nil, "buffer deletion removes timing state")
+vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "x <- 1" })
 local broken = { plots = { { image = {
 	close = function()
 		error("close failed")
