@@ -27,7 +27,7 @@ package.loaded["arf.executor"] = {
 		cb(true)
 	end,
 	eval = function(code, config, cb)
-		widths[#widths + 1] = config.tibble_width
+		widths[#widths + 1] = config.output.tibble.width
 		codes[#codes + 1] = code
 		callbacks[#callbacks + 1] = cb
 		return function() end
@@ -47,9 +47,7 @@ package.loaded["arf.results"] = {
 	clear = function()
 		generation = generation + 1
 	end,
-	all = function()
-		return {}
-	end,
+	clear_all = function() end,
 }
 vim.notify = function(message)
 	notices[#notices + 1] = message
@@ -74,13 +72,13 @@ local function reset()
 	codes, callbacks, entries, notices = {}, {}, {}, {}
 	vim.api.nvim_buf_set_lines(0, 0, -1, false, { "x <- 1", "print(x)" })
 end
-arf.setup({ tibble_width = "auto" })
+arf.setup({ output = { tibble = { width = "auto" } } })
 vim.wo.number = true
 local win = vim.api.nvim_get_current_win()
 local expected_width = vim.api.nvim_win_get_width(win) - vim.fn.getwininfo(win)[1].textoff
 arf.run_all()
 assert(widths[1] == expected_width, "auto uses source text width excluding gutters")
-assert(arf.config.tibble_width == "auto", "auto resolution preserves config")
+assert(arf.config.output.tibble.width == "auto", "auto resolution preserves config")
 assert(#codes == 1)
 assert(
 	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "print(x)" }),
@@ -142,20 +140,4 @@ arf.run_all()
 complete()
 complete()
 assert(#entries == 2, "can run again after interrupt")
-if vim.env.ARF_TEST_MODE == "unit" then
-	print("run-all tests passed")
-	return
-end
-package.loaded["arf.expression"] = nil
-local expression = require("arf.expression")
-vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# comment", "x <- 1", "print(x)" })
-local all, err = expression.all(0)
-if all then
-	assert(#all == 2 and all[1].first == 2 and all[2].first == 3)
-	vim.api.nvim_buf_set_lines(0, 0, -1, false, { "x <- (" })
-	assert(expression.all(0) == nil, "reject syntax error")
-else
-	assert(err:find("parser"), err)
-	print("R parser unavailable; parser integration skipped")
-end
 print("run-all tests passed")

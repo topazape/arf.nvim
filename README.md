@@ -8,295 +8,105 @@ English | [日本語](README.ja.md)
 
 **R code and results, together in Neovim.**
 
-A Neovim plugin powered by [arf](https://github.com/eitsupi/arf). Run expressions from `.R` files and view text and plots directly below your code, without writing output into the source file.
-
-[Features](#features) · [Comparison](#comparison-with-related-plugins) · [Requirements](#requirements) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [Limitations](#limitations) · [Troubleshooting](#troubleshooting)
+Run expressions from `.R` files and see text and plots directly below your code.
+Powered by [arf](https://github.com/eitsupi/arf).
 
 <p align="center">
-  <img src="assets/inline-plot.png" alt="A ggplot scatter plot displayed below R code with per-expression execution times" width="720">
+  <img src="assets/inline-plot.png" alt="R code with an inline plot and per-expression execution times" width="720">
 </p>
 
-## Features
-
-- **Run expressions or the whole buffer** — Tree-sitter identifies pipelines, ggplot expressions, function definitions, and more. Visual selections and explicit line ranges work too.
-- **Inline results** — Display text and plots below the code, stacking multiple images in generation order and keeping results from other ranges. Copy the latest plot to the clipboard.
-- **Persistent R session** — Start a session automatically on first execution and reuse objects across runs.
-- **Read longer output** — Keep inline previews short, then search and copy the rest with `ArfOutput`. Configure how many tibble rows to print.
-- **Object inspection** — Call `summary()` or another R function on the object under the cursor.
-- **Execution signs** — An animated spinner, success and error icons, and configurable symbols and colors.
-
-## Comparison with related plugins
-
-Choose **arf.nvim** when you mainly work in `.R` scripts and want each expression's text and plots directly below the code. It uses arf's headless R session over IPC, with R-aware expression selection and inline results; Jupyter and IRkernel are not required.
-
-- **[R.nvim](https://github.com/R-nvim/R.nvim)** provides a broader R environment: terminal/tmux communication, completion, an object browser, R help, and Quarto/R Markdown support. Choose it for an integrated R editing and console workflow; arf.nvim focuses on evaluating scripts and reading results beside the source.
-- **[iron.nvim](https://github.com/Vigemus/iron.nvim)** sends code to configurable REPLs across languages. Choose it to work with an interactive REPL; arf.nvim attaches text and plot results to the executed R source ranges.
-- **[molten.nvim](https://github.com/benlubas/molten-nvim)** runs code through Jupyter kernels, using [IRkernel](https://irkernel.github.io/) for R. It also supports inline output and images, plus saving/loading cells and outputs and notebook output import/export. Choose it for a Jupyter-based workflow; arf.nvim uses arf directly and does not save results across sessions.
-- **[quarto-nvim](https://github.com/quarto-dev/quarto-nvim)** focuses on Quarto manuscripts, with preview, embedded-language support, and code execution delegated to runners such as Molten or iron. Choose it for `.qmd` authoring; arf.nvim focuses on `.R` scripts.
-
-arf.nvim does not provide completion or a language server. Inline plots require Snacks and a compatible terminal; see Requirements below.
+- Run an expression, selected lines, or the whole buffer.
+- Keep R objects between runs with an automatically started session.
+- Read saved output, inspect objects, and copy plots.
+- Keep source files untouched; results live in virtual lines.
 
 ## Requirements
 
-- **Neovim 0.12+**
-- **R and [arf](https://github.com/eitsupi/arf)** — Follow arf's installation instructions and put `arf` on your PATH, or configure its executable path. Tested with arf 0.7.0-beta.2.
-- **R Tree-sitter parser** — Required for `ArfRun` expression detection in Normal mode and for `ArfRunAll`. Install `r` using your parser manager. Visual selections and explicit line ranges do not require the parser.
-
-Inline plots additionally require:
-
-- [snacks.nvim](https://github.com/folke/snacks.nvim) with `image` enabled. Tested with the placement API in version 2.31.0.
-- **A compatible terminal**, such as Ghostty or Kitty, supporting inline images through the Kitty Graphics Protocol.
-- **ImageMagick** — Snacks uses `magick` or `identify` to read image sizes.
-
-Copying plots with `ArfCopyPlot` requires `osascript` on macOS, `wl-copy` (Wayland) or `xclip` (X11) on Linux, or PowerShell on Windows.
+- **Neovim 0.12+**, **R**, and **[arf](https://github.com/eitsupi/arf) 0.7.0-beta.2+** on your PATH.
+- **R Tree-sitter parser** for expression selection and running the whole buffer.
+- For inline plots: **[Snacks](https://github.com/folke/snacks.nvim)** with `image` enabled, **ImageMagick**, and a compatible terminal such as **Ghostty** or **Kitty**.
 
 ## Installation
 
-### lazy.nvim
-
-Add this spec to your lazy.nvim configuration:
+With [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 return {
   "topazape/arf.nvim",
   version = "*",
   ft = "r",
-  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfObjects", "ArfOutput", "ArfCopyPlot", "ArfStop", "ArfInterrupt" },
   dependencies = {
-    {
-      "folke/snacks.nvim",
-      opts = { image = { enabled = true } },
-    },
+    { "folke/snacks.nvim", opts = { image = { enabled = true } } },
   },
   opts = {},
   keys = {
     { "<LocalLeader>fr", "<Cmd>ArfRun<CR>", ft = "r", desc = "Run R expression" },
-    { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected R lines" },
-    { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
-    { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear R results" },
-    { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R evaluation" },
-    { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
-    { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Show saved R output" },
-    { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
-    { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Show R object summary" },
+    { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
+    { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
+    { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
+    { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
   },
 }
 ```
 
-If you already configure Snacks, add `image = { enabled = true }` to its options. You can omit `dependencies` if you use neither inline plots nor the Object Picker.
+Already use Snacks? Add `image = { enabled = true }` to its existing options.
 
-## Usage
+## First run
 
-1. Start Neovim in your R project's working directory and open an `.R` file.
-2. Place the cursor in an expression and press `<LocalLeader>fr`.
-3. Read the results below the code. To run selected lines instead, make a Visual selection and press the same keys.
+Open an `.R` file in your R project's directory:
 
 ```r
 x <- mtcars
-
 head(x)
-
-plot(
-  x$mpg, x$wt,
-  xlab = "Miles per gallon",
-  ylab = "Weight (1000 lbs)"
-)
-
-model <- lm(mpg ~ wt, data = x)
-plot(model)
+plot(x$mpg, x$wt)
 ```
 
-Assignments normally produce no text output. Run `x <- mtcars` first, then `head(x)` or `plot(...)`. Place the cursor on `x` and press `<LocalLeader>fk` to open its summary; press `q` to close the float.
+Place the cursor on each line and press `<LocalLeader>fr` in order. The first run starts R automatically; later runs reuse the session. Assignments usually produce no text.
 
-Run `model <- ...` followed by `plot(model)` to display four diagnostic plots vertically.
+`<LocalLeader>` defaults to `\`: press `\fr` to run. Select lines in Visual mode and use the same keys to run a range.
 
-Unless `pid` selects an external session, `arf headless` starts automatically on the first evaluation; no manual session startup is needed. To run the whole buffer, press `<LocalLeader>fR` or use `:ArfRunAll`.
+- `<LocalLeader>fo` opens saved text at the cursor. Search with `/`, copy with `y`, and close with `q`.
+- `<LocalLeader>fc` clears results; R objects remain.
+- `<LocalLeader>fi` interrupts evaluation while keeping the session.
 
-### Read longer output
+To go further:
 
-Place the cursor within an executed range and press `<LocalLeader>fo` or run `:ArfOutput` to open saved text without recomputing. Use `/` to search, `y` to copy, `zl` / `zh` to scroll horizontally, and `q` to close.
+- `:ArfRunAll` runs the whole buffer.
+- `:ArfCopyPlot` copies the latest saved plot.
+- `:ArfStop` ends the automatically started session and clears its results.
 
-Rows or columns omitted by R and text exceeding the retention limit are unavailable. Change the [output settings](doc/arf.txt) (`:help arf-output-settings`) and rerun to include them.
+## Inspect objects
 
-### Keymaps
-
-The plugin does not register R buffer keymaps automatically. The Installation example registers keys through lazy.nvim; see [Commands](#commands) for their actions.
-
-`<LocalLeader>` follows `vim.g.maplocalleader` and defaults to backslash: `\fr` to run and `\fc` to clear. To use a comma, set it before the plugin loads:
-
-```lua
-vim.g.maplocalleader = "," -- ,fr to run, ,fc to clear
-```
-
-Customize the lazy.nvim `keys` entries in Installation or use `vim.keymap.set()`. The Visual mapping uses `:ArfRun<CR>` to pass complete selected lines.
-
-### Commands
-
-These commands are available directly; the keys shown are configured by the Installation example:
-
-| Command | Example key | Action |
-| --- | --- | --- |
-| `:ArfRun` | `<LocalLeader>fr` | Run the current expression in Normal mode or complete selected lines in Visual mode. Use `:3,5ArfRun` to run complete lines in an explicit range. |
-| `:ArfRunAll` | `<LocalLeader>fR` | Run every top-level expression in the current buffer in order, displaying results below each expression. |
-| `:ArfClear` | `<LocalLeader>fc` | Remove output, images, and signs from the current buffer; keep R objects. |
-| `:ArfObjects` | — | Search and inspect objects in the current R session. |
-| `:ArfSummary` | `<LocalLeader>fk` | Call `base::summary()` on the object under the cursor and show it in a float. |
-| `:ArfOutput` | `<LocalLeader>fo` | Open saved output for the execution range under the cursor without evaluating R again. |
-| `:ArfCopyPlot` | `<LocalLeader>fy` | Copy the most recently generated saved plot image to the clipboard. |
-| `:ArfInterrupt` | `<LocalLeader>fi` | Interrupt the current R evaluation and stop subsequent `ArfRunAll` expressions, keeping the session, variables, and results. Interruption is cooperative and may take time. |
-| `:ArfStop` | `<LocalLeader>fs` | Terminate the automatically started arf session, even during execution, and clear results and signs in all buffers. The next evaluation starts a fresh session. With an explicit `pid`, warn without changing anything. |
-
-`:ArfCopyPlot` searches all buffers and copies the last image of the most recent plot result. Cleared or replaced results are not copied.
-
-### Object Picker
+Use `:ArfObjects` to search objects in the current R session with Snacks.picker.
+Press `<CR>` for a summary or `p` in Normal mode to print the selected object.
 
 <p align="center">
-  <img src="assets/object-picker.png" alt="ArfObjects picker listing R objects with their names, classes, and dimensions" width="720">
-  <br>
-  <em>Search and select objects in the current R session.</em>
+  <img src="assets/object-picker.png" alt="R objects with their names, classes, and dimensions" width="720">
 </p>
 
-Use `:ArfObjects` or `require("arf").objects()` to fuzzy search names in the current session's `.GlobalEnv` with Snacks.picker. Rows show the name, class, and dimensions or length when available. This feature requires Snacks.picker.
-
-- Type a name in insert mode; `<CR>` runs `summary()`. Press `<Esc>` to enter normal mode.
-- In normal mode, `p` runs `print()`, `r` refreshes the list, and `q` closes it.
-- Results use the existing float. `ArfOutput` separately reopens saved execution output.
-- The list reflects the session when the Picker opens. Dot-prefixed names are omitted.
-
-### Object inspection
+Use `:ArfSummary` on an object name to inspect it directly. Press `q` to close the result.
 
 <p align="center">
-  <img src="assets/object-summary.png" alt="Linear model summary shown in a floating window" width="720">
-  <br>
-  <em>Inspect a model summary alongside your code.</em>
+  <img src="assets/object-summary.png" alt="Linear model summary in a floating window" width="720">
 </p>
-
-To call an R function on the object under the cursor and show its text output in a float, add a callback to your keymaps:
-
-```lua
--- Add this entry to the lazy.nvim `keys` table above.
-{
-  "<LocalLeader>fp",
-  function()
-    require("arf").inspect("performance::model_performance", {
-      title = "Model performance",
-    })
-  end,
-  ft = "r",
-  desc = "Inspect model performance",
-},
-```
-
-Run the expression that creates the object first, then place the cursor on its name.
-
-Object inspection (including summary) resolves the name under the cursor (including dots) in the global environment and inherited environments. It does not evaluate member/index expressions or whole names containing spaces/operators: on `column` in `df$column`, it looks up a separate object named `column`.
-
-`inspect(fn, opts)` accepts an ASCII R function name or an exported `package::function`; R code can be supplied explicitly with `{ r = [[ ... ]] }`. Install the package before using a namespace-qualified function; `library()` is unnecessary. Plots are not displayed.
-
-`title` is optional and defaults to `function(object)`, such as `summary(x)`, or `inspect(object)` for `{ r = ... }`.
-
-The function receives the object under the cursor as its only argument. Use an anonymous R function to supply extra arguments. Errors appear in the float.
-
-```lua
-require("arf").inspect({
-  r = [[
-    function(x) {
-      stats::confint(x, level = 0.90)
-    }
-  ]],
-}, { title = "90% confidence interval" })
-```
-
-Supply trusted R code. Functions already defined in the R session can also be passed by name, such as `inspect("inspect_ci")`.
-
-### Execution and sessions
-
-- Automatic selection requires a syntactically complete buffer. Inside a function or loop, it selects the whole definition or loop; expressions sharing a line are selected by cursor position. Blank lines and comments outside expressions have nothing to run.
-- `ArfRun` / `ArfRunAll` show per-expression wall-clock time, including IPC and result processing but excluding initial session startup.
-- `ArfRunAll` runs top-level expressions in the existing session, stopping at the first R error or IPC failure. Completed results and existing results not reached remain. `:%ArfRun` evaluates the buffer as one range, with combined output at the end.
-- Results appear below the executed range. Editing keeps the previous output dimmed and removes execution signs. Rerunning replaces the result; deleting the entire range removes it. Other ranges do not update automatically: rerun dependent expressions after changing data or variables.
-- Interrupted evaluations use dedicated `ArfInterrupted`, `ArfFloatInterrupted`, and `ArfSignInterrupted` highlights, with amber/yellow status colors. Customize the sign with `signs.interrupted = { text = "│", hl = "ArfSignInterrupted" }`; the `auto` theme follows `DiagnosticWarn`.
-- Editing, clearing, or unloading the source buffer while evaluation is pending discards its result and stops subsequent expressions, without interrupting R.
-- All buffers in a Neovim instance share one R session. Automatically started sessions use `:pwd` at the first evaluation; later `:cd` changes do not affect R. External sessions retain their existing working directory. Neovim exits stop only automatically started sessions.
-
-For detailed configuration, the Lua API, highlights, and renamed settings, see the [help](doc/arf.txt) (`:help arf`).
 
 ## Configuration
 
-Set only the options you want to change, using `opts` in your lazy.nvim spec. Nested `signs` options merge individually. Repeated calls to `setup()` merge the supplied options into the current configuration.
-
-<details>
-<summary>All options and defaults</summary>
+Defaults work without configuration. Change only what you need in the lazy.nvim `opts` table:
 
 ```lua
-require("arf").setup({
-  theme = "default",          -- "default", "auto", or "neon"
-
-  -- arf / R session
-  executable = "arf",         -- Command name or executable path
-  pid = nil,                  -- nil: start a session; number: use an existing session
-  startup_timeout = 10000,    -- Session startup timeout in milliseconds
-  eval_timeout = 300000,      -- IPC response timeout in milliseconds
-
-  -- Image display limits in terminal cells
-  image_max_width = 100,      -- Maximum columns
-  image_max_height = 30,      -- Maximum rows
-
-  -- PNG generated by R
-  plot_width_px = 1200,       -- Width in pixels
-  plot_height_px = 800,       -- Height in pixels
-  plot_dpi = 180,             -- DPI; also affects text and line sizes
-
-  -- Output display and retention
-  tibble_max_rows = false,    -- Set a positive integer to override tibble row printing
-  tibble_width = "auto",      -- false, "auto", positive integer, or "all"
-  inline_max_lines = 20,      -- Inline body lines, excluding notices and images
-  output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
-  -- Shared by ArfOutput and object inspections
-  float_width = "60%",        -- "auto", positive integer, or "1%" to "100%"
-  float_max_height = 30,      -- Maximum rows; shrinks for short output
-
-  -- Execution signs
-  signs = {
-    enabled = true,           -- Set false to hide all execution signs
-    priority = 5,             -- Higher values take precedence
-    range = { text = "│", hl = "ArfSignRange" },
-    success = { text = "│", hl = "ArfSignSuccess" },
-    error = { text = "│", hl = "ArfSignError" },
-    running = {
-      text = "…",             -- Initial symbol; also used when animation is disabled
-      hl = "ArfSignRunning",
-      frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
-      interval = 80,          -- Frame interval in milliseconds
-    },
-  },
-})
+opts = {
+  inline = { max_lines = 10 },
+  float_window = { width = "80%" },
+  output = { tibble = { max_rows = 100 } },
+}
 ```
 
-</details>
-
-For option details, see the [help](doc/arf.txt) (`:help arf-configuration`).
-
-## Limitations
-
-- One evaluation at a time; additional runs and inspections are rejected throughout `ArfRunAll`. Output appears after each evaluation, without streaming or resuming interrupted computations.
-- Results are tracked by line range. Running another expression on the same line replaces the previous result.
-- Results cannot be saved/restored across sessions. Text retention limits apply per evaluation; there is no total limit across results or limit on image count or total image size.
-- stdout precedes stderr, losing their interleaving.
-
-## Troubleshooting
-
-- **No image appears:** run `:checkhealth snacks` to check dependencies and terminal detection. `:echo executable('magick')` or `:echo executable('identify')` returns `1` when the command is available.
-- **An expression will not run:** check the R Tree-sitter parser and buffer syntax. Visual selections and `:3,5ArfRun` work without a parser.
-- **Keymaps do not work:** check that you added the `keys` configuration, that the buffer filetype is `r`, and that `maplocalleader` is set before the keymaps are registered.
-- **Output is missing:** place the cursor within the executed code range and open `:ArfOutput`. For tibble omissions or discarded output, change the [output settings](doc/arf.txt) (`:help arf-output-settings`) and rerun.
-- **`object not found`:** run the expression that creates the variable first. A session started after `:ArfStop` has none of the previous session's objects.
-- **A relative file path fails:** run `getwd()` in R. Neovim's `:cd` does not change an existing R session's directory. Use `setwd()` in R, or use `:ArfStop` to end the automatically started session, change Neovim's directory, and rerun.
-- **A computation will not finish:** `:ArfStop` terminates the automatically started session. Its R objects will be lost. Stop an external session selected with `pid` from that session instead.
+See [the help](doc/arf.txt) (`:help arf`) for all settings, commands, custom inspection, and troubleshooting. Full defaults: `:help arf-configuration`.
 
 ## Project philosophy
 
-Built with AI-assisted “vibe coding” for my own R workflow. It already does what I need, so I’m keeping the scope small. If you’d like additional features, feel free to fork it and make it your own.
+Built with AI-assisted “vibe coding” for my own R workflow. I’m keeping the scope small; feel free to fork it for your own needs.
 
 ## License
 

@@ -46,6 +46,7 @@ check(lines[3][1][1]:find("snacks.nvim is required", 1, true), "missing backend 
 check(#lines == 4 and lines[4][1][1] == "", "blank line follows image warning")
 local created, shown, updated, closed = 0, 0, 0, 0
 local opts
+local fail_show, fail_close
 package.loaded.snacks = {
 	image = {
 		terminal = {
@@ -61,6 +62,9 @@ package.loaded.snacks = {
 				return {
 					opts = options,
 					show = function()
+						if fail_show then
+							error("show failed")
+						end
 						shown = shown + 1
 					end,
 					update = function()
@@ -68,6 +72,9 @@ package.loaded.snacks = {
 					end,
 					close = function()
 						closed = closed + 1
+						if fail_close then
+							error("close failed")
+						end
 					end,
 				}
 			end,
@@ -84,7 +91,7 @@ display.refresh()
 drain()
 check(created == 1 and shown == 1 and updated == 1, "coalesce refresh and create one placement")
 check(
-	opts.pos[1] == 2 and opts.max_width == require("arf").config.image_max_width,
+	opts.pos[1] == 2 and opts.max_width == require("arf").config.image.display.max_width,
 	"placement position and configured dimensions"
 )
 local ns = vim.api.nvim_create_namespace("arf.test.image")
@@ -104,10 +111,7 @@ for _, inline in ipairs({ false, true }) do
 end
 vim.api.nvim_buf_set_lines(buf, 0, 0, false, { "inserted" })
 drain()
-check(
-	entry.plots[1].image.opts.pos[1] == 3 and entry.plots[1].image.opts.range[1] == 3,
-	"move placement after source edit before range"
-)
+check(opts.pos[1] == 3 and opts.range[1] == 3, "move placement after source edit before range")
 vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "plot(x + 1)" })
 drain()
 check(entry.stale and created == 1 and closed == 0 and cleaned == 0, "source edit retains image and resources")
@@ -117,10 +121,28 @@ check(
 )
 check(timing().virt_text[1][2] == "ArfElapsedStale", "source edit dims elapsed time")
 check(rendered()[1][1][2] == "ArfSeparator", "stale output keeps normal separator color")
+fail_show = true
+display.refresh()
+drain()
+check(rendered()[2][1][1] == "text survives", "image update failure preserves text")
+check(vim.inspect(rendered()):find("show failed", 1, true), "image update failure is visible")
+fail_show = false
+display.refresh()
+drain()
+check(not vim.inspect(rendered()):find("show failed", 1, true), "successful retry clears image errors")
+check(entry.plots == nil, "result entries do not own image placements")
+fail_close = true
 results.clear(buf)
 drain()
 check(closed == 1 and cleaned == 1, "clear releases image and evaluation resources")
 check(#vim.api.nvim_buf_get_extmarks(buf, results.namespace, 0, -1, {}) == 0, "clear removes timing mark")
+fail_close = false
+opts.on_update({ ns = ns, eids = {} })
+drain()
+check(
+	#vim.api.nvim_buf_get_extmarks(buf, results.namespace, 0, -1, {}) == 0,
+	"late image callback cannot recreate a released result"
+)
 for _, case in ipairs({
 	{ 0, "0ms" },
 	{ 142, "142ms" },
@@ -162,15 +184,8 @@ local deleted_buf = vim.api.nvim_create_buf(false, true)
 results.put(deleted_buf, 0, 0, { text = "", elapsed_ms = 142, cleanup = function() end })
 drain()
 vim.api.nvim_buf_delete(deleted_buf, { force = true })
-check(results.all()[deleted_buf] == nil, "buffer deletion removes timing state")
+check(#results.entries(deleted_buf) == 0, "buffer deletion removes timing state")
 vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "x <- 1" })
-local broken = { plots = { { image = {
-	close = function()
-		error("close failed")
-	end,
-} } } }
-display.release(broken)
-check(broken.plots == nil, "image close failure still clears reference")
 package.loaded.snacks.image.placement.new = function()
 	error("placement failed")
 end

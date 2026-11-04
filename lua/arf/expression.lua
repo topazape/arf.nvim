@@ -68,11 +68,7 @@ function M.current(buf)
 			local before = row == sr and col < sc and line:sub(col + 1, sc):match("^%s*$")
 			local after = row == er and col >= ec and line:sub(ec + 1, col + 1):match("^%s*$")
 			if contains or before or after then
-				return {
-					first = sr + 1,
-					last = ec == 0 and er or er + 1,
-					code = vim.treesitter.get_node_text(node, buf),
-				}
+				return expression(node, buf)
 			end
 		end
 	end

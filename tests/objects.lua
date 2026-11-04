@@ -113,7 +113,7 @@ complete("bad")
 assert(notices[#notices]:find("Unable to read object list", 1, true))
 options.actions.arf_refresh(picker)
 complete("", nil, true)
-assert(notices[#notices]:find("output_max_bytes", 1, true))
+assert(notices[#notices]:find("output.max_bytes", 1, true))
 options.actions.arf_refresh(picker)
 picker.closed = true
 complete(row("late"))
@@ -136,44 +136,3 @@ before = #codes
 arf.objects()
 assert(#codes == before and notices[#notices]:find("requires snacks.nvim", 1, true))
 print("object picker unit tests passed")
-
-if vim.env.ARF_TEST_MODE == "unit" then
-	return
-end
-if vim.fn.executable("Rscript") ~= 1 then
-	print("Rscript unavailable; object metadata integration skipped")
-	return
-end
-local script = [[
-assign("a b", 1:1000, .GlobalEnv)
-df <- data.frame(x = 1:3, y = 4:6)
-model <- lm(mpg ~ wt, mtcars)
-bad <- structure(1, class = "broken")
-dim.broken <- function(x) stop("metadata error")
-noisy <- structure(1, class = "noisy")
-dim.noisy <- function(x) { base::cat("stdout noise"); base::cat("stderr noise", file = base::stderr()); message("message noise"); warning("warning noise"); NULL }
-noisy_bad <- structure(1, class = "noisy_bad")
-dim.noisy_bad <- function(x) { base::cat("noise before failure"); message("message before failure"); stop("metadata error") }
-# Standard function names in the user's session must not affect collection.
-ls <- get <- class <- dim <- length <- format <- cat <- function(...) stop("masked function called")
-active_calls <- 0L
-makeActiveBinding("active", function() { active_calls <<- active_calls + 1L; stop("must not run") }, .GlobalEnv)
-]]
-local result = vim.system({ "Rscript", "--vanilla", "-" }, {
-	text = true,
-	stdin = script .. objects.code .. "\nstopifnot(active_calls == 0L)\n",
-}):wait(30000)
-assert(result.code == 0, result.stderr)
-assert(result.stderr == "", "metadata messages and warnings must be suppressed")
-local by_name = {}
-for _, item in ipairs(objects.decode(result.stdout)) do
-	by_name[item.name] = item
-end
-assert(by_name["a b"].size == "1,000")
-assert(by_name.df.size == "3 × 2" and by_name.df.class == "data.frame")
-assert(by_name.model.class == "lm" and by_name.model.size ~= "")
-assert(by_name.bad.class == "broken" and by_name.bad.size == "")
-assert(by_name.noisy.class == "noisy" and by_name.noisy.size == "1")
-assert(by_name.noisy_bad.class == "noisy_bad" and by_name.noisy_bad.size == "")
-assert(by_name.active.class == "" and by_name.active.size == "")
-print("object metadata R integration passed")

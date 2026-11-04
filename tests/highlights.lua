@@ -169,7 +169,6 @@ local background_result = vim.system({
 	"lua " .. background_test,
 }, { text = true }):wait(10000)
 assert(background_result.code == 0, background_result.stdout .. background_result.stderr)
-print("highlight tests passed")
 
 for _, selected in ipairs({ "default", "neon" }) do
 	vim.cmd("highlight clear")
@@ -179,3 +178,4 @@ for _, selected in ipairs({ "default", "neon" }) do
 	assert(get("ArfSignInterrupted").fg == get("ArfInterrupted").fg)
 	assert(get("ArfFloatInterrupted").fg == get("ArfInterrupted").fg)
 end
+print("highlight tests passed")

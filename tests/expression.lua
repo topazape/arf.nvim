@@ -6,9 +6,6 @@ local function check(value, message)
 	checks = checks + 1
 	assert(value, message)
 end
-local function lines(value)
-	vim.api.nvim_buf_set_lines(0, 0, -1, false, value)
-end
 local get_parser = vim.treesitter.get_parser
 vim.treesitter.get_parser = function()
 	error("missing parser")
@@ -24,45 +21,95 @@ vim.treesitter.get_parser = function()
 end
 value, err = expression.all(0)
 check(value == nil and err:find("syntax tree"), "parser failure is reported")
-vim.treesitter.get_parser = get_parser
-if vim.env.ARF_TEST_MODE == "unit" then
-	print("expression unit tests passed (" .. checks .. " checks)")
-	return
+-- Supply syntax trees directly so selection tests need no installed grammar.
+local function node(kind, range, children, rhs)
+	return {
+		type = function()
+			return kind
+		end,
+		named = function()
+			return kind ~= ";"
+		end,
+		range = function()
+			return unpack(range)
+		end,
+		field = function()
+			return rhs or {}
+		end,
+		has_error = function()
+			return false
+		end,
+		iter_children = function()
+			local index = 0
+			return function()
+				index = index + 1
+				return (children or {})[index]
+			end
+		end,
+	}
 end
-lines({ "x <- 1" })
-local all, parser_error = expression.all(0)
-if not all then
-	assert(parser_error:find("parser"), parser_error)
-	print("R parser unavailable; expression integration skipped")
-	return
+local root
+vim.treesitter.get_parser = function()
+	return {
+		parse = function()
+			return { {
+				root = function()
+					return root
+				end,
+			} }
+		end,
+	}
 end
-lines({ "# comment", "  x <- 1  ", "", "x |>", "  mean()", "f <- function(x) {", "  x + 1", "}" })
-all = assert(expression.all(0))
-check(#all == 3, "skip comments and blank lines")
-for _, case in ipairs({ { 2, 0, 1 }, { 2, 9, 1 }, { 4, 0, 2 }, { 5, 3, 2 }, { 7, 3, 3 }, { 8, 0, 3 } }) do
+local get_text = vim.treesitter.get_node_text
+vim.treesitter.get_node_text = function(tree, buf)
+	local sr, sc, er, ec = tree:range()
+	return table.concat(vim.api.nvim_buf_get_text(buf, sr, sc, er, ec, {}), "\n")
+end
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+	"# comment",
+	"  x <- 1  ",
+	"",
+	"x |>",
+	"  mean()",
+	"x; y # note",
+})
+local assignment = node("binary_operator", { 1, 2, 1, 8 })
+local pipeline = node("binary_operator", { 3, 0, 4, 8 })
+root = node("program", { 0, 0, 6, 0 }, {
+	node("comment", { 0, 0, 0, 9 }),
+	assignment,
+	pipeline,
+	node("identifier", { 5, 0, 5, 1 }),
+	node(";", { 5, 1, 5, 2 }),
+	node("identifier", { 5, 3, 5, 4 }),
+	node("comment", { 5, 5, 5, 11 }),
+})
+local all = assert(expression.all(0))
+check(#all == 4, "exclude comments, blank lines and punctuation")
+check(
+	all[2].code == "x |>\n  mean()" and all[2].first == 4 and all[2].last == 5,
+	"retain full multiline expression and inclusive range"
+)
+for _, case in ipairs({ { 2, 0, 1 }, { 2, 9, 1 }, { 4, 2, 2 }, { 5, 4, 2 }, { 6, 0, 3 }, { 6, 3, 4 } }) do
 	vim.api.nvim_win_set_cursor(0, { case[1], case[2] })
-	check(
-		vim.deep_equal(expression.current(0), all[case[3]]),
-		"select whole top-level expression at " .. case[1] .. ":" .. case[2]
-	)
+	check(vim.deep_equal(expression.current(0), all[case[3]]), "select expression at cursor or adjacent whitespace")
 end
-for _, row in ipairs({ 1, 3 }) do
-	vim.api.nvim_win_set_cursor(0, { row, 0 })
-	check(expression.current(0) == nil, "comment and blank lines are not executable")
+for _, pos in ipairs({ { 1, 2 }, { 3, 0 }, { 6, 1 }, { 6, 7 } }) do
+	vim.api.nvim_win_set_cursor(0, pos)
+	check(expression.current(0) == nil, "exclude comments, blank lines and semicolons")
 end
-lines({ "x <- 1; y <- 2 # comment" })
-for _, case in ipairs({ { 0, "x <- 1" }, { 8, "y <- 2" } }) do
-	vim.api.nvim_win_set_cursor(0, { 1, case[1] })
-	check(assert(expression.current(0)).code == case[2], "select expression on shared line")
+for _, kind in ipairs({ "extract_operator", "namespace_operator" }) do
+	root = node("program", {}, { node("binary_operator", {}, { node(kind, {}) }) })
+	check(expression.all(0) == nil and expression.current(0) == nil, "reject nested unfinished " .. kind)
+	root = node("program", {}, { node(kind, { 5, 0, 5, 1 }, {}, { assignment }) })
+	check(#assert(expression.all(0)) == 1, "accept completed " .. kind)
 end
-for _, col in ipairs({ 6, 15, 17 }) do
-	vim.api.nvim_win_set_cursor(0, { 1, col })
-	check(expression.current(0) == nil, "semicolon and trailing comment excluded")
+root = node("program", {}, {})
+check(#assert(expression.all(0)) == 0, "empty tree has no expressions")
+root.has_error = function()
+	return true
 end
-for _, source in ipairs({ "x <- (", "x$", "x@", "base::", "base:::", "f <- function() {", "x <- 1\ny <- (" }) do
-	lines(vim.split(source, "\n"))
-	check(expression.all(0) == nil and expression.current(0) == nil, "reject incomplete buffer: " .. source)
-end
-lines({ "# only comment", "" })
-check(#assert(expression.all(0)) == 0, "comment-only buffer has no expressions")
-print("expression tests passed (" .. checks .. " checks)")
+check(expression.all(0) == nil, "reject syntax errors before selecting fragments")
+vim.treesitter.get_node_text = get_text
+vim.treesitter.get_parser = get_parser
+print("expression unit tests passed (" .. checks .. " checks)")
