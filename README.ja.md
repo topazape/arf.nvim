@@ -75,6 +75,7 @@ return {
     { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected R lines" },
     { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear R results" },
+    { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R evaluation" },
     { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Show saved R output" },
     { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
@@ -145,7 +146,7 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 | `:ArfSummary` | `<LocalLeader>fk` | カーソル下のオブジェクトに `base::summary()` を実行してフロート表示。 |
 | `:ArfOutput` | `<LocalLeader>fo` | カーソルを含む実行範囲の保存済み出力を開く。R は再実行しません。 |
 | `:ArfCopyPlot` | `<LocalLeader>fy` | 直近に生成した保存済みプロット画像をクリップボードにコピー。 |
-| `:ArfInterrupt` | — | 実行中の R 評価と `ArfRunAll` の後続処理を中断。セッション・変数・既存結果を保持します。中断は協調的で、R が応答するまで待つ場合があります。 |
+| `:ArfInterrupt` | `<LocalLeader>fi` | 実行中の R 評価と `ArfRunAll` の後続処理を中断。セッション・変数・既存結果を保持します。中断は協調的で、R が応答するまで待つ場合があります。 |
 | `:ArfStop` | `<LocalLeader>fs` | 自動起動した arf を実行中でも終了し、全バッファの結果・サインを削除。次の実行は新しいセッションになります。`pid` 指定時は何も変更せず警告します。 |
 
 `:ArfCopyPlot` は全バッファから直近のプロット結果を探し、その最後の画像をコピーします。削除・置換された結果はコピーしません。
