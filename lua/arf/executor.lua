@@ -133,6 +133,19 @@ local({
 				cleanup()
 				return callback(nil, "Unable to read the JSON response from arf")
 			end
+			local status = reply.status
+			local errors = {
+				error = "R evaluation failed (see captured output)",
+				interrupted = "R evaluation interrupted",
+				unknown = "R evaluation outcome is unknown",
+			}
+			-- Older servers omit status; retain compatibility with their error field.
+			local err = type(reply.error) == "string" and reply.error or nil
+			if status ~= nil and status ~= vim.NIL then
+				err = status ~= "ok" and (err or errors[status] or errors.unknown) or nil
+			else
+				status = err and "error" or "ok"
+			end
 			local text, chunks = output.decode(
 				string_field(reply, "stdout"),
 				string_field(reply, "stderr"),
@@ -145,7 +158,8 @@ local({
 				chunks = chunks,
 				truncated = vim.uv.fs_stat(dir .. "/truncated") ~= nil,
 				paths = files,
-				error = type(reply.error) == "string" and reply.error or nil,
+				status = status,
+				error = err,
 				cleanup = cleanup,
 			}, config.output_max_bytes)
 			result.elapsed_ms = (vim.uv.hrtime() - started) / 1e6
@@ -161,6 +175,29 @@ local({
 		cancelled = true
 		process:kill(15)
 		cleanup()
+	end
+end
+function M.interrupt(config, callback)
+	local ok, err = pcall(
+		vim.system,
+		{ config.executable, "ipc", "interrupt", "--pid", tostring(config.pid) },
+		{ text = true },
+		vim.schedule_wrap(function(process)
+			if process.code ~= 0 then
+				return callback(
+					nil,
+					process.stderr ~= "" and process.stderr or "arf interrupt failed (" .. process.code .. ")"
+				)
+			end
+			local decoded, reply = pcall(vim.json.decode, process.stdout)
+			if not decoded or type(reply) ~= "table" or type(reply.accepted) ~= "boolean" then
+				return callback(nil, "Unable to read the interrupt response from arf")
+			end
+			callback(reply.accepted)
+		end)
+	)
+	if not ok then
+		callback(nil, tostring(err))
 	end
 end
 return M
