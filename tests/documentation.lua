@@ -1,27 +1,33 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local defaults = vim.deepcopy(require("arf.config").get())
-for _, path in ipairs({ "README.md", "README.ja.md", "doc/arf.txt" }) do
+local config = require("arf.config")
+local defaults = vim.deepcopy(config.get())
+local help = table.concat(vim.fn.readfile("doc/arf.txt"), "\n")
+local start = assert(help:find("*arf-configuration*", 1, true))
+local code = assert(help:sub(start):match(">lua\n(.-)\n<"))
+local captured
+local chunk = assert(loadstring(code, "@doc/arf.txt"))
+setfenv(chunk, {
+	require = function(name)
+		assert(name == "arf")
+		return {
+			setup = function(opts)
+				captured = opts
+			end,
+		}
+	end,
+})()
+assert(vim.deep_equal(captured, defaults), "help must document every current default")
+config.setup(captured)
+
+for _, path in ipairs({ "README.md", "README.ja.md" }) do
 	local text = table.concat(vim.fn.readfile(path), "\n")
-	local code
-	if path:match("%.md$") then
-		local start = assert(text:find("## Configuration", 1, true))
-		code = assert(text:sub(start):match("```lua\n(.-)\n```"))
-	else
-		code = assert(text:match(">lua\n(.-)\n<"))
+	for example in text:gmatch("```lua\n(.-)\n```") do
+		local env = {}
+		local run = assert(loadstring(example, "@" .. path))
+		local spec = setfenv(run, env)()
+		local opts = spec and spec.opts or env.opts
+		assert(type(opts) == "table", "README Lua examples must contain plugin options")
+		config.setup(opts)
 	end
-	local captured
-	local chunk = assert(loadstring(code, "@" .. path))
-	setfenv(chunk, {
-		require = function(name)
-			assert(name == "arf")
-			return {
-				setup = function(opts)
-					captured = opts
-				end,
-			}
-		end,
-	})()
-	assert(vim.deep_equal(captured, defaults), path .. " must document every current default")
-	require("arf.config").setup(captured)
 end
-print("documented defaults match configuration")
+print("documented defaults and README examples are valid")
