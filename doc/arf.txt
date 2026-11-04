@@ -33,7 +33,7 @@ REQUIREMENTS                                               *arf-requirements*
   ranges work without a parser.
 - Inline plots: snacks.nvim with image enabled, ImageMagick (magick or
   identify), and a terminal supporting Snacks inline images, such as Ghostty
-  or Kitty. The Snacks placement API is tested with version 2.31.0.
+  or Kitty.
 - Object Picker: Snacks.picker.
 - Copying plots: osascript on macOS, wl-copy (Wayland) or xclip (X11) on
   Linux, or PowerShell on Windows.
@@ -153,11 +153,11 @@ Use :ArfObjects or require("arf").objects() to fuzzy search names in the
 session's .GlobalEnv with Snacks.picker. Rows show name, class, and dimensions
 or length when available. Dot-prefixed names are omitted.
 
-- Type a name in insert mode; <CR> runs summary(). <Esc> enters normal mode. -
-In normal mode, p runs print(), r refreshes the list, and q closes it. -
-Search matches names; it does not fetch metadata on each keystroke. - The list
-reflects the session when opened or refreshed. - Results appear in a float.
-ArfOutput separately reopens saved code output.
+- Type a name in insert mode; <CR> runs summary(). <Esc> enters normal mode.
+- In normal mode, p runs print(), r refreshes the list, and q closes it.
+- Search matches names; it does not fetch metadata on each keystroke.
+- The list reflects the session when opened or refreshed.
+- Results appear in a float. ArfOutput separately reopens saved code output.
 
 ==============================================================================
 OBJECT INSPECTION                                               *arf-inspect*
@@ -217,7 +217,7 @@ calls to setup() merge the supplied options into the current configuration.
 >lua
     require("arf").setup({
       executable = "arf",
-      pid = nil,                  -- nil: start a session; number: use an existing session
+      pid = nil,                  -- omitted: auto-start; number: external; false: reset
       startup_timeout = 10000,    -- milliseconds
       eval_timeout = 300000,      -- milliseconds per evaluation
 
@@ -276,7 +276,8 @@ SESSION                                                         *arf-session*
 - pid: omitted by default for automatic startup. To use an existing session,
   obtain its PID with arf ipc list and supply it as a number. Manage its
   lifecycle and working directory separately. ArfStop does not stop an
-  external session or clear its results.
+  external session or clear its results. Pass pid = false to setup() to
+  return to automatic startup; omitting pid preserves the current setting.
 - startup_timeout: startup wait time. Failed or timed-out startup is retried
   on the next evaluation.
 - eval_timeout: IPC response wait time for each evaluation, not for the entire
@@ -316,27 +317,23 @@ the rest with :ArfOutput.
 - inline.max_lines: inline body lines, excluding separators, notices, and
   images.
 - output.tibble.max_rows: maximum tibble rows to print. The default false
-  preserves
-  R's settings. For individual expressions, use print(df, n = 100) or
+  preserves R's settings. For individual expressions, use print(df, n = 100) or
   print(df, n = 100, width = Inf) to include omitted columns too. An explicit
   n takes precedence.
 - output.max_bytes: retained text per evaluation (default 1 MiB), including
   stdout, stderr, and errors but excluding images. If a retention-limit notice
   appears, increase it and rerun. This does not limit R's memory usage.
 - output.tibble.width: false preserves R's settings; "auto" uses the source
-  window's
-  text width at execution start (excluding gutters); a positive integer sets
-  the output width in characters; "all" prints all columns. Finite widths show
+  window's text width at execution start (excluding gutters); a positive
+  integer sets the output width in characters; "all" prints all columns. Finite widths show
   one tier, omit columns that do not fit, and also set R's width, affecting
   other printed output. "all" may be stacked in multiple tiers by tibble. An
   explicit print(..., width = ...) takes precedence. Resizing requires re-
   evaluation.
 - float_window.width / float_window.max_height: shared float size for saved
-  output, summary,
-  and other inspections. float_window.width = "auto" uses the editor width
-  minus
-  borders and margins when opened; a positive integer specifies columns; a
-  string such as "90%" specifies a percentage of the editor width (integer
+  output, summary, and other inspections. float_window.width = "auto" uses the
+  editor width minus borders and margins when opened; a positive integer
+  specifies columns; a string such as "90%" specifies a percentage of the editor width (integer
   1–100%). Floats fit the screen and shrink vertically for short output.
   Images appear only inline.
 
@@ -417,9 +414,9 @@ HIGHLIGHTS                                                   *arf-highlights*
 Output, floats, and signs use dedicated highlight groups. Select their
 defaults with theme:
 
-- "default" (default): a neutral gray palette with restrained status colors. -
-"auto": follow the current colorscheme. - "neon": purple backgrounds with
-vivid text and status colors.
+- "default" (default): a neutral gray palette with restrained status colors.
+- "auto": follow the current colorscheme.
+- "neon": purple backgrounds with vivid text and status colors.
 
 default and neon follow background for dark and light variants. Only arf
 highlights change.

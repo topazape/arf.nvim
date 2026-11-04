@@ -106,4 +106,9 @@ local supplied = { image = { render = { dpi = 200 } } }
 arf.setup(supplied)
 supplied.image.render.dpi = 300
 assert(arf.config.image.render.dpi == 200, "setup does not retain caller tables")
+arf.setup({ pid = 123 })
+arf.setup({ inline = { max_lines = 12 } })
+assert(arf.config.pid == 123, "omitting pid preserves the external session")
+arf.setup({ pid = false })
+assert(arf.config.pid == nil, "false restores automatic startup")
 print("configuration tests passed")

@@ -26,7 +26,7 @@ function M.new(buf, row, path, on_grid)
 		on_update = function(placement)
 			-- Snacks builds the Kitty placeholder grid. Move that grid into our
 			-- single output extmark so text and image have an unambiguous order.
-			-- eids/ns are internal to Snacks; covered by the real-placement test.
+			-- eids/ns are internal to Snacks; keep their use confined to this adapter.
 			local lines, inline = {}, nil
 			for _, id in ipairs(placement.eids) do
 				local mark = vim.api.nvim_buf_get_extmark_by_id(buf, placement.ns, id, { details = true })

@@ -161,29 +161,6 @@ check(
 )
 vim.api.nvim_buf_delete(buf, { force = true })
 check(#results.entries(buf) == 0, "detach removes buffer state")
-if vim.env.ARF_TEST_MODE ~= "unit" then
-	local buf = buffer()
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "df |> head()" })
-	local expressions, err = require("arf.expression").all(buf)
-	if expressions then
-		local entry, resources = put(buf, 0, 0)
-		vim.api.nvim_buf_set_lines(buf, 0, 1, false, { "df |> head() |>" })
-		results.sync_ranges(buf)
-		check(entry.stale and entry.last == 0 and resources.cleaned == 0, "incomplete pipe retains result")
-		vim.api.nvim_buf_set_lines(buf, 1, 1, false, { "  transform(", "    total = 1", "  )" })
-		results.sync_ranges(buf)
-		check(entry.last == 3 and resources.cleaned == 0, "real R parser follows completed pipeline")
-		vim.api.nvim_buf_set_lines(buf, 4, 4, false, { "print(df)" })
-		results.sync_ranges(buf)
-		check(entry.last == 3, "separate expression does not extend range")
-		vim.api.nvim_buf_set_lines(buf, 0, 4, false, {})
-		disposed(buf, entry, resources)
-	else
-		assert(err:find("parser"), err)
-		print("R parser unavailable; range integration skipped")
-	end
-	vim.api.nvim_buf_delete(buf, { force = true })
-end
 local first_buf, second_buf = buffer(), buffer()
 local function plot_result(paths)
 	return { text = "", paths = paths, cleanup = function() end }

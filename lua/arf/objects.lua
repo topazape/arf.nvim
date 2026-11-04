@@ -3,7 +3,7 @@ local M = {}
 -- Only names and small metadata cross IPC. Hex fields keep arbitrary names,
 -- including tabs/newlines, unambiguous without requiring an R JSON package.
 M.code = [[
-base::local({
+base::evalq({
   hex <- function(x) base::paste(base::sprintf("%02x", base::as.integer(base::charToRaw(base::enc2utf8(x)))), collapse = "")
   safe <- function(f, fallback) base::tryCatch(base::suppressMessages(base::suppressWarnings(f())), error = function(e) fallback)
   # Discard method output without retaining it in memory or mixing it with rows.
@@ -34,7 +34,7 @@ base::local({
     base::close(quiet)
   })
   base::invisible(NULL)
-})
+}, envir = base::new.env(parent = .GlobalEnv))
 ]]
 
 local function unhex(value)

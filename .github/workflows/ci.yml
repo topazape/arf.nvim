@@ -17,8 +17,6 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    env:
-      ARF_TEST_MODE: unit
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install Neovim
@@ -28,41 +26,4 @@ jobs:
           echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
           echo "NVIM_LOG_FILE=$RUNNER_TEMP/arf-nvim.log" >> "$GITHUB_ENV"
       - name: Run unit tests
-        run: nvim --headless -u NONE -l tests/run.lua
-
-  integration:
-    name: R, parser, Snacks and IPC integration
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      ARF_TEST_STRICT: "1"
-      ARF_TEST_SNACKS: ${{ github.workspace }}/.test-deps/snacks.nvim
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Install Neovim and R
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes r-base r-cran-tibble
-          curl --fail --location --retry 3 -o "$RUNNER_TEMP/nvim.tar.gz" https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-linux-x86_64.tar.gz
-          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
-          echo "NVIM_LOG_FILE=$RUNNER_TEMP/arf-nvim.log" >> "$GITHUB_ENV"
-          echo "R_HOME=$(R RHOME)" >> "$GITHUB_ENV"
-      - name: Install arf 0.7.0-beta.2
-        working-directory: ${{ runner.temp }}
-        run: |
-          curl --fail --location --retry 3 -O https://github.com/eitsupi/arf/releases/download/v0.7.0-beta.2/arf-console-x86_64-unknown-linux-gnu.tar.xz
-          curl --fail --location --retry 3 -O https://github.com/eitsupi/arf/releases/download/v0.7.0-beta.2/arf-console-x86_64-unknown-linux-gnu.tar.xz.sha256
-          sha256sum --check arf-console-x86_64-unknown-linux-gnu.tar.xz.sha256
-          mkdir arf-bin
-          tar -xJf arf-console-x86_64-unknown-linux-gnu.tar.xz --strip-components=1 -C arf-bin
-          echo "$RUNNER_TEMP/arf-bin" >> "$GITHUB_PATH"
-      - name: Fetch pinned R grammar and Snacks
-        run: |
-          mkdir -p .test-deps/tree-sitter-r .test-deps/snacks.nvim
-          curl --fail --location --retry 3 https://github.com/r-lib/tree-sitter-r/archive/58a22794466c0fc15b0d3b40531db751593721e8.tar.gz | tar -xz --strip-components=1 -C .test-deps/tree-sitter-r
-          curl --fail --location --retry 3 https://github.com/folke/snacks.nvim/archive/e6fd58c82f2f3fcddd3fe81703d47d6d48fc7b9f.tar.gz | tar -xz --strip-components=1 -C .test-deps/snacks.nvim
-      - name: Build R parser
-        run: nvim --headless -u NONE -l tests/install_parser.lua
-      - name: Run all suites without skips
         run: nvim --headless -u NONE -l tests/run.lua

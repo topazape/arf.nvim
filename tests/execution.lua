@@ -154,12 +154,12 @@ assert(not execution.stop())
 assert(stopped == stops_before and notices[#notices]:find("External sessions", 1, true))
 vim.notify = original_notify
 pending(result())
--- Return to automatic sessions without adding a second public reset convention.
-config.get().pid = nil
+-- Explicitly return to automatic sessions through the public setup API.
+config.setup({ pid = false })
 start()
 config.setup({ pid = 789 })
 assert(execution.stop() and stopped == stops_before + 1, "stop still owns an automatic startup")
-config.get().pid = nil
+config.setup({ pid = false })
 start()
 ready()
 pending(result())

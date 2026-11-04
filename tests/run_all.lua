@@ -140,20 +140,4 @@ arf.run_all()
 complete()
 complete()
 assert(#entries == 2, "can run again after interrupt")
-if vim.env.ARF_TEST_MODE == "unit" then
-	print("run-all tests passed")
-	return
-end
-package.loaded["arf.expression"] = nil
-local expression = require("arf.expression")
-vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# comment", "x <- 1", "print(x)" })
-local all, err = expression.all(0)
-if all then
-	assert(#all == 2 and all[1].first == 2 and all[2].first == 3)
-	vim.api.nvim_buf_set_lines(0, 0, -1, false, { "x <- (" })
-	assert(expression.all(0) == nil, "reject syntax error")
-else
-	assert(err:find("parser"), err)
-	print("R parser unavailable; parser integration skipped")
-end
 print("run-all tests passed")

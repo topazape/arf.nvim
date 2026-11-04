@@ -83,11 +83,7 @@ function M.ensure(config, callback)
 				current = nil
 			end
 			if not session.done then
-				finish(
-					session,
-					nil,
-					"Failed to start arf (exit " .. result.code .. "): " .. session.stderr
-				)
+				finish(session, nil, "Failed to start arf (exit " .. result.code .. "): " .. session.stderr)
 			end
 		end)
 	)

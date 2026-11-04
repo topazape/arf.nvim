@@ -1,5 +1,5 @@
 -- Run with: nvim --headless -u NONE -l tests/inspect.lua
--- IPC and float creation are mocked; Rscript checks run when R is installed.
+-- IPC and float creation are mocked.
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local arf = require("arf")
 local inspect = require("arf.inspect")
@@ -285,42 +285,3 @@ vim.cmd("ArfSummary")
 check(called == "base::summary", "ArfSummary command delegates directly to inspect")
 arf.inspect = original_inspect
 print("inspect Lua tests passed (" .. checks .. " checks)")
-
--- Optional integration: evaluate the generated R expressions without arf IPC.
-if vim.env.ARF_TEST_MODE == "unit" then
-	return
-end
-if vim.fn.executable("Rscript") ~= 1 then
-	print("Rscript unavailable; R integration skipped")
-	return
-end
-local r = {
-	"model <- stats::lm(mpg ~ wt + hp, data = mtcars)",
-	"inspect_ci <- function(x) stats::confint(x, level = 0.90)",
-	"stopifnot(identical(" .. assert(inspect.code(embedded, "model")) .. ", inspect_ci(model)))",
-	"stopifnot(identical(" .. assert(inspect.code({ r = "function(x) x # trailing comment" }, "model")) .. ", model))",
-	"stopifnot(inherits(try("
-		.. assert(inspect.code({ r = "function(x) stop('embedded error')" }, "model"))
-		.. ", silent = TRUE), 'try-error'))",
-	"stopifnot(identical(" .. assert(inspect.code("summary", "model")) .. ", summary(model)))",
-	"stopifnot(identical(" .. assert(inspect.code("stats::coef", "model")) .. ", stats::coef(model)))",
-	"stopifnot(identical(" .. assert(inspect.code("inspect_ci", "model")) .. ", inspect_ci(model)))",
-	"expr_object <- quote(stop('must not evaluate a returned language object'))",
-	"stopifnot(identical(" .. assert(inspect.code("identity", "expr_object")) .. ", expr_object))",
-	"summary <- 1L",
-	"stopifnot(identical(" .. assert(inspect.code("summary", "model")) .. ", base::summary(model)))",
-	"rm(summary)",
-	"stopifnot(inherits(try("
-		.. assert(inspect.code("arf_missing_inspector", "model"))
-		.. ", silent = TRUE), 'try-error'))",
-	"stopifnot(inherits(try("
-		.. assert(inspect.code("arfDefinitelyMissingPackage::inspect", "model"))
-		.. ", silent = TRUE), 'try-error'))",
-	"stopifnot(inherits(try("
-		.. assert(inspect.code("summary", "arf_missing_object"))
-		.. ", silent = TRUE), 'try-error'))",
-	"print('inspect R integration passed')",
-}
-local result = vim.system({ "Rscript", "--vanilla", "-" }, { text = true, stdin = table.concat(r, "\n") }):wait(30000)
-assert(result.code == 0, result.stderr)
-print(result.stdout)

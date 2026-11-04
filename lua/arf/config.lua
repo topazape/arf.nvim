@@ -133,6 +133,10 @@ function M.setup(opts)
 	opts = opts == nil and {} or opts
 	shape(opts, current, "")
 	local candidate = vim.tbl_deep_extend("force", current, opts)
+	-- nil is absent from Lua option tables; false explicitly restores auto-start.
+	if opts.pid == false then
+		candidate.pid = nil
+	end
 	validate(candidate)
 	current = candidate
 	return current
