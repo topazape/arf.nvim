@@ -32,6 +32,7 @@ M.config = {
 }
 local busy = false
 local epoch = 0
+local active
 local cancel_current
 
 function M.setup(opts)
@@ -123,9 +124,12 @@ local function evaluate(codes, callback, on_start, on_error, valid)
 		tibble_width = math.max(1, vim.api.nvim_win_get_width(win) - vim.fn.getwininfo(win)[1].textoff)
 	end
 	busy = true
+	local request = {}
+	active = request
 	local request_epoch = epoch
 	local index = 1
 	local function finish()
+		active = nil
 		busy = false
 		cancel_current = nil
 	end
@@ -147,11 +151,12 @@ local function evaluate(codes, callback, on_start, on_error, valid)
 			return failed(startup_error)
 		end
 		local config = vim.tbl_extend("force", M.config, { pid = pid, tibble_width = tibble_width })
+		request.config = config
 		local function next_expression()
 			if request_epoch ~= epoch then
 				return
 			end
-			if valid and not valid() then
+			if request.interrupted or (valid and not valid()) then
 				finish()
 				if on_error then
 					on_error()
@@ -170,7 +175,12 @@ local function evaluate(codes, callback, on_start, on_error, valid)
 					return failed(err)
 				end
 				local proceed = callback(result, index)
-				if proceed == false or index == #codes then
+				if
+					request.interrupted
+					or result.status and result.status ~= "ok"
+					or proceed == false
+					or index == #codes
+				then
 					return finish()
 				end
 				index = index + 1
@@ -268,6 +278,29 @@ function M.clear(buf)
 	return require("arf.results").clear(buf)
 end
 
+function M.interrupt()
+	local request = active
+	if not request or not request.config then
+		return vim.notify("arf: No active R evaluation to interrupt", vim.log.levels.WARN)
+	end
+	if request.interrupted then
+		return
+	end
+	-- Keep the guard until eval returns; accepting an interrupt is not completion.
+	request.interrupted = true
+	require("arf.executor").interrupt(request.config, function(accepted, err)
+		if active ~= request then
+			return
+		end
+		if err then
+			request.interrupted = false
+			vim.notify("arf: " .. err, vim.log.levels.ERROR)
+		elseif not accepted then
+			vim.notify("arf: No active IPC evaluation accepted the interrupt", vim.log.levels.WARN)
+		end
+	end)
+end
+
 function M.stop()
 	if M.config.pid then
 		return vim.notify(
@@ -276,6 +309,7 @@ function M.stop()
 		)
 	end
 	epoch = epoch + 1
+	active = nil
 	busy = false
 	local cancel = cancel_current
 	cancel_current = nil

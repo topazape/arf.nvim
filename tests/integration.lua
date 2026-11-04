@@ -39,7 +39,10 @@ local ok, err = xpcall(function()
 		run('options(warn = 1); cat("日本語\\n"); message("notice"); warning("careful"); stop("expected failure")')
 	assert(value.text:find("日本語", 1, true), "capture stdout before error")
 	assert(value.text:find("notice", 1, true) and value.text:find("careful", 1, true), "capture messages and warnings")
-	assert(value.error and value.error:find("expected failure", 1, true), "preserve R error")
+	assert(
+		value.status == "error" and value.text:find("expected failure", 1, true),
+		"preserve visible R error and status"
+	)
 	value = run("arf_test_value + 2L")
 	assert(not value.error and value.text:find("43", 1, true), "evaluation recovers after R error")
 	-- Exercise metadata through the real output-capturing executor, including
@@ -68,6 +71,30 @@ ls <- get <- function(...) stop("masked function")
 	value = run('base::rm(ls, get); cat("stdout restored"); message("stderr restored")')
 	assert(not value.error and value.text:find("stdout restored", 1, true))
 	assert(value.text:find("stderr restored", 1, true), "metadata collection restores executor sinks")
+	-- Wait for R to enter user code before requesting the cooperative interrupt.
+	local marker = vim.fn.tempname()
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+		'writeLines("ready", ' .. vim.json.encode(marker) .. "); Sys.sleep(30)",
+	})
+	arf.run(1, 1)
+	assert(
+		vim.wait(5000, function()
+			return vim.fn.filereadable(marker) == 1
+		end, 10),
+		"sleep started"
+	)
+	arf.interrupt()
+	assert(
+		vim.wait(5000, function()
+			local state = results.all()[buf]
+			return state and state.entries[1] and not state.entries[1].running
+		end, 10),
+		"interrupt completed"
+	)
+	vim.fn.delete(marker)
+	assert(results.all()[buf].entries[1].result.status == "interrupted", "interrupted status")
+	value = run("arf_test_value + 3L")
+	assert(value.status == "ok" and value.text:find("44", 1, true), "interrupt retains session and restores sinks")
 	value = run("plot(lm(mpg ~ wt, data = mtcars))")
 	assert(not value.error and #value.paths == 4, "capture four plots through real IPC")
 	local paths = vim.deepcopy(value.paths)

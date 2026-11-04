@@ -13,6 +13,7 @@ package.loaded["arf.expression"] = {
 local callbacks, codes, entries, notices = {}, {}, {}, {}
 local generation, cleaned = 0, 0
 local widths = {}
+local interrupts = 0
 package.loaded["arf.session"] = {
 	ensure = function(_, cb)
 		cb(123)
@@ -20,6 +21,11 @@ package.loaded["arf.session"] = {
 	stop = function() end,
 }
 package.loaded["arf.executor"] = {
+	interrupt = function(config, cb)
+		assert(config.pid == 123, "interrupt targets the active PID")
+		interrupts = interrupts + 1
+		cb(true)
+	end,
 	eval = function(code, config, cb)
 		widths[#widths + 1] = config.tibble_width
 		codes[#codes + 1] = code
@@ -122,6 +128,20 @@ assert(
 	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "print(x)" }),
 	"single runs leave source lines unchanged, including EOF"
 )
+reset()
+arf.run_all()
+arf.interrupt()
+arf.interrupt()
+assert(interrupts == 1, "duplicate interrupt suppressed")
+arf.run_all()
+assert(#codes == 1 and #notices == 1, "interrupt keeps busy until completion")
+complete()
+assert(#codes == 1 and #entries == 1, "interrupt prevents subsequent expressions even if completion races")
+reset()
+arf.run_all()
+complete()
+complete()
+assert(#entries == 2, "can run again after interrupt")
 if vim.env.ARF_TEST_MODE == "unit" then
 	print("run-all tests passed")
 	return

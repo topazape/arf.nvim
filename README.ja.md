@@ -40,7 +40,7 @@ arf.nvim 自体は補完や言語サーバーを提供しません。インラ�
 ## Requirements
 
 - **Neovim 0.12+**
-- **R と [arf](https://github.com/eitsupi/arf)** — arf の導入手順に従ってインストールし、`arf` を PATH に通してください。実行ファイルのパスも設定できます。arf 0.6.0 で検証済み。
+- **R と [arf](https://github.com/eitsupi/arf)** — arf の導入手順に従ってインストールし、`arf` を PATH に通してください。実行ファイルのパスも設定できます。arf 0.7.0-beta.2 で検証済み。
 - **R の Tree-sitter パーサー** — `ArfRun` の通常モードの式判定と `ArfRunAll` に使用。利用中のパーサーマネージャーで `r` を導入してください。Visual 選択・明示的な行範囲の実行には不要です。
 
 画像表示には、次も必要です。
@@ -62,7 +62,7 @@ return {
   "topazape/arf.nvim",
   version = "*",
   ft = "r",
-  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfObjects", "ArfOutput", "ArfCopyPlot", "ArfStop" },
+  cmd = { "ArfRun", "ArfRunAll", "ArfClear", "ArfSummary", "ArfObjects", "ArfOutput", "ArfCopyPlot", "ArfStop", "ArfInterrupt" },
   dependencies = {
     {
       "folke/snacks.nvim",
@@ -145,6 +145,7 @@ Installation の設定例で使うキーとコマンドです。コマンドは�
 | `:ArfSummary` | `<LocalLeader>fk` | カーソル下のオブジェクトに `base::summary()` を実行してフロート表示。 |
 | `:ArfOutput` | `<LocalLeader>fo` | カーソルを含む実行範囲の保存済み出力を開く。R は再実行しません。 |
 | `:ArfCopyPlot` | `<LocalLeader>fy` | 直近に生成した保存済みプロット画像をクリップボードにコピー。 |
+| `:ArfInterrupt` | — | 実行中の R 評価と `ArfRunAll` の後続処理を中断。セッション・変数・既存結果を保持します。中断は協調的で、R が応答するまで待つ場合があります。 |
 | `:ArfStop` | `<LocalLeader>fs` | 自動起動した arf を実行中でも終了し、全バッファの結果・サインを削除。次の実行は新しいセッションになります。`pid` 指定時は何も変更せず警告します。 |
 
 `:ArfCopyPlot` は全バッファから直近のプロット結果を探し、その最後の画像をコピーします。削除・置換された結果はコピーしません。

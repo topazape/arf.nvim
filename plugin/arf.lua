@@ -40,3 +40,7 @@ end, { desc = "Copy the most recently generated saved plot to the clipboard" })
 vim.api.nvim_create_user_command("ArfObjects", function()
 	require("arf").objects()
 end, { desc = "Pick an R object to inspect" })
+
+vim.api.nvim_create_user_command("ArfInterrupt", function()
+	require("arf").interrupt()
+end, { desc = "Interrupt R evaluation and stop subsequent expressions, keeping the session" })

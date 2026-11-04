@@ -90,6 +90,30 @@ finish(0, '{"stdout":false,"stderr":12,"error":false}')
 check(result.elapsed_ms == 7, "independent evaluation starts a fresh clock, including empty output")
 check(result.text == "" and result.error == nil, "ignore non-string response fields")
 result.cleanup()
+for _, status in ipairs({ "ok", "error", "interrupted", "unknown" }) do
+	start()
+	finish(0, vim.json.encode({ status = status, stdout = "partial", stderr = "", error = vim.NIL }))
+	check(result.status == status, "preserve status: " .. status)
+	check((result.error == nil) == (status == "ok"), "only ok succeeds: " .. status)
+	result.cleanup()
+end
+local interrupt_args, interrupt_reply
+vim.system = function(argv, _, callback)
+	interrupt_args = argv
+	callback({ code = 0, stdout = '{"accepted":true,"execution_id":7}', stderr = "" })
+end
+executor.interrupt(config, function(accepted, err)
+	interrupt_reply = accepted
+	check(err == nil, "interrupt accepted without error")
+end)
+vim.wait(20, function()
+	return interrupt_reply ~= nil
+end)
+check(interrupt_reply == true, "decode accepted interrupt")
+check(
+	vim.deep_equal(interrupt_args, { "arf", "ipc", "interrupt", "--pid", "42" }),
+	"interrupt targets explicit session"
+)
 vim.system = function(_, opts)
 	dir = vim.json.decode(assert(opts.stdin:match('%.arf_stdout_path <%- ("[^"]+")'))):gsub("/stdout.bin$", "")
 	error("cannot spawn")
