@@ -3,6 +3,8 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 package.loaded["arf.display"] = {
 	refresh = function() end,
+	watch = function() end,
+	forget = function() end,
 	release = function(entry)
 		if entry.image then
 			entry.image:close()
@@ -59,7 +61,7 @@ for _, row in ipairs({ 0, 2, 3, 4 }) do
 	local entry, resources = put(buf, 2, 3)
 	vim.api.nvim_buf_set_lines(buf, row, row, false, { "inserted" })
 	if row == 3 then
-		check(#results.all()[buf].entries == 1 and entry.stale, "insertion inside retains stale result")
+		check(#results.entries(buf) == 1 and entry.stale, "insertion inside retains stale result")
 		check(entry.first == 2 and entry.last == 4, "insertion extends range")
 		check(resources.cleaned == 0 and #entry.signs == 0, "retain resources and clear execution signs")
 		check(#vim.api.nvim_buf_get_extmarks(buf, signs.namespace, 0, -1, {}) == 0, "remove success and range signs")
@@ -107,7 +109,7 @@ do
 	local entry, resources = put(buf, 4, 5)
 	vim.api.nvim_buf_set_lines(buf, 4, 6, false, {})
 	disposed(buf, entry, resources)
-	check(#results.all()[buf].entries == 0, "full deletion removes result")
+	check(#results.entries(buf) == 0, "full deletion removes result")
 	vim.api.nvim_buf_delete(buf, { force = true })
 end
 -- Failed results also lose their execution signs after edits.
@@ -125,7 +127,7 @@ do
 	local entry = results.start(buf, 1, 2)
 	local timer = entry.signs.timer
 	vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "edited" })
-	check(#results.all()[buf].entries == 0 and timer:is_closing(), "edit cancels running entry and timer")
+	check(#results.entries(buf) == 0 and timer:is_closing(), "edit cancels running entry and timer")
 	vim.api.nvim_buf_delete(buf, { force = true })
 end
 local buf = buffer()
@@ -133,12 +135,9 @@ local old, old_resources = put(buf, 1, 2)
 local adjacent, adjacent_resources = put(buf, 3, 3)
 local replacement, replacement_resources = put(buf, 0, 2)
 disposed(buf, old, old_resources)
-check(
-	#results.all()[buf].entries == 2 and adjacent_resources.cleaned == 0,
-	"replace overlap while retaining adjacent result"
-)
+check(#results.entries(buf) == 2 and adjacent_resources.cleaned == 0, "replace overlap while retaining adjacent result")
 results.cancel(buf, old)
-check(#results.all()[buf].entries == 2, "stale cancellation does not remove replacement")
+check(#results.entries(buf) == 2, "stale cancellation does not remove replacement")
 results.cancel(buf, replacement)
 results.cancel(buf, replacement)
 disposed(buf, replacement, replacement_resources)
@@ -161,7 +160,7 @@ check(
 	"queued animation cannot recreate cleared signs"
 )
 vim.api.nvim_buf_delete(buf, { force = true })
-check(results.all()[buf] == nil, "detach removes buffer state")
+check(#results.entries(buf) == 0, "detach removes buffer state")
 if vim.env.ARF_TEST_MODE ~= "unit" then
 	local buf = buffer()
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "df |> head()" })
@@ -199,7 +198,6 @@ results.clear(first_buf)
 check(results.latest_plot() == nil, "cleared plots cannot be copied")
 vim.api.nvim_buf_delete(first_buf, { force = true })
 vim.api.nvim_buf_delete(second_buf, { force = true })
-print("results tests passed (" .. checks .. " checks)")
 
 local interrupted_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(interrupted_buf, 0, -1, false, { "slow()" })
@@ -212,3 +210,41 @@ results.put(interrupted_buf, 0, 0, {
 local interrupted_marks = vim.api.nvim_buf_get_extmarks(interrupted_buf, signs.namespace, 0, -1, { details = true })
 check(interrupted_marks[1][4].sign_hl_group == "ArfSignInterrupted", "result status selects interrupted sign")
 results.clear(interrupted_buf)
+
+-- A failed presentation must not replace a previously stored result or leak marks.
+local transaction_buf = buffer()
+local saved, saved_resources = put(transaction_buf, 0, 2)
+local original_set = vim.api.nvim_buf_set_extmark
+vim.api.nvim_buf_set_extmark = function(buf, ns, row, col, opts)
+	if buf == transaction_buf and opts.sign_text and row == 1 then
+		error("sign placement failed")
+	end
+	return original_set(buf, ns, row, col, opts)
+end
+local replacement_cleaned = 0
+local replacement_result = {
+	text = "new",
+	cleanup = function()
+		replacement_cleaned = replacement_cleaned + 1
+	end,
+}
+local ok = pcall(results.put, transaction_buf, 0, 2, replacement_result)
+vim.api.nvim_buf_set_extmark = original_set
+check(not ok and results.at(transaction_buf, 1) == saved, "failed placement preserves previous result")
+check(saved_resources.cleaned == 0, "failed replacement does not release previous resources")
+check(
+	#vim.api.nvim_buf_get_extmarks(transaction_buf, results.namespace, 0, -1, {}) == 1,
+	"failed replacement removes its output mark"
+)
+check(
+	#vim.api.nvim_buf_get_extmarks(transaction_buf, signs.namespace, 0, -1, {}) == 3,
+	"failed replacement removes partial signs"
+)
+replacement_result.cleanup()
+local snapshot = results.entries(transaction_buf)
+snapshot[1] = nil
+check(results.at(transaction_buf, 1) == saved, "entry lists cannot remove stored results")
+results.clear(transaction_buf)
+disposed(transaction_buf, saved, saved_resources)
+vim.api.nvim_buf_delete(transaction_buf, { force = true })
+print("results tests passed (" .. checks .. " checks)")

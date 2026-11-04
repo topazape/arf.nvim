@@ -1,5 +1,5 @@
 -- Build the pinned grammar fetched by CI; no parser manager is required.
-local root = vim.fn.getcwd() .. "/.test-deps/tree-sitter-r"
+local root = vim.env.ARF_TEST_GRAMMAR or (vim.fn.getcwd() .. "/.test-deps/tree-sitter-r")
 local target = vim.fn.stdpath("data") .. "/site/parser"
 vim.fn.mkdir(target, "p")
 local args = { "cc", "-O2", "-fPIC", "-I" .. root .. "/src" }

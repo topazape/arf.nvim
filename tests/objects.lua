@@ -113,7 +113,7 @@ complete("bad")
 assert(notices[#notices]:find("Unable to read object list", 1, true))
 options.actions.arf_refresh(picker)
 complete("", nil, true)
-assert(notices[#notices]:find("output_max_bytes", 1, true))
+assert(notices[#notices]:find("output.max_bytes", 1, true))
 options.actions.arf_refresh(picker)
 picker.closed = true
 complete(row("late"))

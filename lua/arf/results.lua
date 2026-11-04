@@ -14,7 +14,10 @@ local function dispose(buf, entry)
 	if vim.api.nvim_buf_is_valid(buf) then
 		vim.api.nvim_buf_del_extmark(buf, ns, entry.mark)
 	end
-	entry.result.cleanup()
+	local ok, err = pcall(entry.result.cleanup)
+	if not ok then
+		vim.notify("arf: " .. tostring(err), vim.log.levels.ERROR)
+	end
 end
 
 function M.clear(buf)
@@ -24,10 +27,11 @@ function M.clear(buf)
 	if not state then
 		return
 	end
-	for _, entry in ipairs(state.entries) do
+	local entries = state.entries
+	state.entries = {}
+	for _, entry in ipairs(entries) do
 		dispose(buf, entry)
 	end
-	state.entries = {}
 	require("arf.display").refresh()
 end
 
@@ -65,6 +69,10 @@ local function ensure(buf)
 	end
 	local state = { entries = {} }
 	buffers[buf] = state
+	require("arf.display").watch(buf, function()
+		M.sync_ranges(buf)
+		return state.entries
+	end)
 	vim.api.nvim_buf_attach(buf, false, {
 		on_lines = function(_, _, _, first, old_last, new_last)
 			local delta = new_last - old_last
@@ -74,7 +82,7 @@ local function ensure(buf)
 				local intersects = first <= entry.last and old_last > entry.first
 					or (first == old_last and first > entry.first and first <= entry.last)
 				local deleted = new_last == first and first <= entry.first and old_last > entry.last
-				if intersects and (entry.running or deleted) then
+				if intersects and (entry.status == "running" or deleted) then
 					dispose(buf, entry)
 				else
 					if intersects then
@@ -95,13 +103,30 @@ local function ensure(buf)
 		on_detach = function()
 			M.clear(buf)
 			buffers[buf] = nil
+			generations[buf] = nil
+			require("arf.display").forget(buf)
 		end,
 	})
 	return state
 end
 
-function M.put(buf, first, last, result, running)
+function M.put(buf, first, last, result)
 	local state = ensure(buf)
+	serial = serial + 1
+	local entry = {
+		serial = serial,
+		first = first,
+		last = last,
+		result = result,
+		status = result.status or (result.error and "error" or "ok"),
+		mark = vim.api.nvim_buf_set_extmark(buf, ns, last, 0, {}),
+	}
+	local ok, ids = pcall(require("arf.signs").place, buf, first, last, entry.status)
+	if not ok then
+		vim.api.nvim_buf_del_extmark(buf, ns, entry.mark)
+		error(ids)
+	end
+	entry.signs = ids
 	local keep = {}
 	for _, entry in ipairs(state.entries) do
 		-- Overlapping runs replace previous output, avoiding ambiguous stacking.
@@ -111,17 +136,6 @@ function M.put(buf, first, last, result, running)
 			keep[#keep + 1] = entry
 		end
 	end
-	serial = serial + 1
-	local entry = {
-		serial = serial,
-		first = first,
-		last = last,
-		result = result,
-		running = running,
-		mark = vim.api.nvim_buf_set_extmark(buf, ns, last, 0, {}),
-	}
-	entry.signs =
-		require("arf.signs").place(buf, first, last, result.error ~= nil, running, result.status == "interrupted")
 	keep[#keep + 1] = entry
 	state.entries = keep
 	require("arf.display").refresh()
@@ -129,7 +143,7 @@ function M.put(buf, first, last, result, running)
 end
 
 function M.start(buf, first, last)
-	return M.put(buf, first, last, { text = "", cleanup = function() end }, true)
+	return M.put(buf, first, last, { text = "", status = "running", cleanup = function() end })
 end
 
 function M.cancel(buf, entry)
@@ -139,8 +153,8 @@ function M.cancel(buf, entry)
 	end
 	for index, current in ipairs(state.entries) do
 		if current == entry then
-			dispose(buf, entry)
 			table.remove(state.entries, index)
+			dispose(buf, entry)
 			require("arf.display").refresh()
 			return
 		end
@@ -160,7 +174,26 @@ function M.latest_plot()
 	return path
 end
 
-function M.all()
-	return buffers
+-- Return a list copy so callers cannot add/remove stored results.
+function M.entries(buf)
+	return vim.list_extend({}, buffers[buf] and buffers[buf].entries or {})
 end
+
+function M.at(buf, row)
+	M.sync_ranges(buf)
+	for _, entry in ipairs(M.entries(buf)) do
+		if entry.first <= row and row <= entry.last then
+			return entry
+		end
+	end
+end
+
+function M.clear_all()
+	for buf in pairs(buffers) do
+		M.clear(buf)
+	end
+end
+
+local group = vim.api.nvim_create_augroup("arf.results", { clear = true })
+vim.api.nvim_create_autocmd("VimLeavePre", { group = group, callback = M.clear_all })
 return M

@@ -18,12 +18,12 @@ local function run(code)
 	arf.run(1, vim.api.nvim_buf_line_count(buf))
 	assert(
 		vim.wait(25000, function()
-			local state = results.all()[buf]
-			return state and state.entries[1] and not state.entries[1].running
+			local entries = results.entries(buf)
+			return entries[1] and entries[1].status ~= "running"
 		end, 10),
 		"evaluation timed out: " .. code .. "\n" .. table.concat(notices, "\n")
 	)
-	return results.all()[buf].entries[1].result
+	return results.entries(buf)[1].result
 end
 local ok, err = xpcall(function()
 	local value = run("arf_test_value <- 41L")
@@ -86,13 +86,13 @@ ls <- get <- function(...) stop("masked function")
 	arf.interrupt()
 	assert(
 		vim.wait(5000, function()
-			local state = results.all()[buf]
-			return state and state.entries[1] and not state.entries[1].running
+			local entries = results.entries(buf)
+			return entries[1] and entries[1].status ~= "running"
 		end, 10),
 		"interrupt completed"
 	)
 	vim.fn.delete(marker)
-	assert(results.all()[buf].entries[1].result.status == "interrupted", "interrupted status")
+	assert(results.entries(buf)[1].result.status == "interrupted", "interrupted status")
 	value = run("arf_test_value + 3L")
 	assert(value.status == "ok" and value.text:find("44", 1, true), "interrupt retains session and restores sinks")
 	value = run("plot(lm(mpg ~ wt, data = mtcars))")
@@ -107,7 +107,7 @@ ls <- get <- function(...) stop("masked function")
 	end
 	arf.stop()
 	assert(vim.uv.kill(pid, 0) == nil, "stop terminates owned process")
-	assert(next(results.all()) == nil or #results.all()[buf].entries == 0, "stop clears results")
+	assert(#results.entries(buf) == 0, "stop clears results")
 	value = run('exists("arf_test_value", envir = .GlobalEnv, inherits = FALSE)')
 	assert(not value.error and value.text:find("FALSE", 1, true), "restart uses a fresh R session")
 end, debug.traceback)

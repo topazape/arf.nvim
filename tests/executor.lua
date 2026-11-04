@@ -1,7 +1,11 @@
 -- Run with: nvim --headless -u NONE -l tests/executor.lua
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local executor = require("arf.executor")
-local config = vim.tbl_extend("force", require("arf").config, { pid = 42, output_max_bytes = 8 })
+local config = vim.tbl_deep_extend(
+	"force",
+	require("arf").config,
+	{ pid = 42, output = { max_bytes = 8, tibble = { width = false } } }
+)
 local original = vim.system
 local original_hrtime = vim.uv.hrtime
 local now = 1000000000
@@ -55,7 +59,7 @@ vim.fn.writefile({}, dir .. "/plot-000000002.png")
 vim.fn.writefile({}, dir .. "/plot-000000001.png")
 vim.fn.writefile({}, dir .. "/truncated")
 now = now + 135000000
-finish(0, vim.json.encode({ stdout = "abc", stderr = "def", error = "日本" }))
+finish(0, vim.json.encode({ stdout = "abc", stderr = "def", status = "error", error = "日本" }))
 check(result.elapsed_ms == 142, "R errors retain elapsed time including result processing")
 check(result.text == "abcdef" and result.error == "" and result.truncated, "decode and limit combined output and error")
 check(
@@ -74,6 +78,27 @@ for _, response in ipairs({ "not json", "null", "42", '"string"' }) do
 		"invalid response releases resources: " .. response
 	)
 end
+for _, response in ipairs({ "{}", '{"error":"old server"}', '{"status":"invalid"}', '{"status":null}' }) do
+	start()
+	finish(0, response)
+	check(result == nil and failure:find("status") and vim.fn.isdirectory(dir) == 0, "reject missing/invalid status")
+end
+local old_limit = require("arf.output").limit
+require("arf.output").limit = function()
+	error("decode failure")
+end
+start()
+finish(0, '{"status":"ok"}')
+check(
+	result == nil and failure:find("decode failure") and vim.fn.isdirectory(dir) == 0,
+	"decode exception releases captures"
+)
+require("arf.output").limit = old_limit
+local finished_cancel = start()
+finish(0, '{"status":"ok"}')
+finished_cancel()
+check(killed == nil and vim.fn.isdirectory(dir) == 1, "completed cancellation handle cannot destroy delivered results")
+result.cleanup()
 start()
 finish(7, "", "IPC unavailable")
 check(failure == "IPC unavailable" and vim.fn.isdirectory(dir) == 0, "nonzero exit reports stderr and cleans up")
@@ -83,10 +108,10 @@ check(failure:find("7") ~= nil, "empty stderr has exit-code fallback")
 local cancel = start()
 cancel()
 check(killed == 15 and vim.fn.isdirectory(dir) == 0, "cancel terminates IPC client and removes captures")
-finish(0, "{}")
+finish(0, '{"status":"ok"}')
 check(result == nil and failure == nil, "late completion after cancel does not reach consumer")
 start()
-finish(0, '{"stdout":false,"stderr":12,"error":false}')
+finish(0, '{"status":"ok","stdout":false,"stderr":12,"error":false}')
 check(result.elapsed_ms == 7, "independent evaluation starts a fresh clock, including empty output")
 check(result.text == "" and result.error == nil, "ignore non-string response fields")
 result.cleanup()
@@ -133,11 +158,12 @@ if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
 		return { kill = function() end }
 	end
 	local function rcheck(source, rows, assertions, width)
-		local settings = vim.tbl_extend(
-			"force",
-			config,
-			{ output_max_bytes = 1048576, tibble_max_rows = rows, tibble_width = width or false }
-		)
+		local settings = vim.tbl_deep_extend("force", config, {
+			output = {
+				max_bytes = 1048576,
+				tibble = { max_rows = rows, width = width == "auto" and vim.o.columns or width or false },
+			},
+		})
 		executor.eval(source, settings, function() end)
 		local code = table.concat({
 			"options(width = 40, pillar.print_max = 7, pillar.print_min = NULL, pillar.width = NULL)",

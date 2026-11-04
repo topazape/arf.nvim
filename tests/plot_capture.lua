@@ -5,12 +5,12 @@ if vim.fn.executable("R") ~= 1 then
 	print("R unavailable; plot capture integration skipped")
 	return
 end
-local config = require("arf").config
+local config = vim.tbl_deep_extend("force", require("arf").config, { output = { tibble = { width = false } } })
 local system = vim.system
 vim.system = function(_, opts, callback)
 	local process = system({ "R", "--vanilla", "--slave" }, { text = true, stdin = opts.stdin }):wait()
 	assert(process.code == 0, process.stderr)
-	callback({ code = 0, stdout = vim.json.encode({ stdout = process.stdout, stderr = process.stderr }) })
+	callback({ code = 0, stdout = vim.json.encode({ status = "ok", stdout = process.stdout, stderr = process.stderr }) })
 	return { kill = function() end }
 end
 local done = false

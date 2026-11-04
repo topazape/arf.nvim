@@ -67,10 +67,10 @@ function M.code(fn, name, global_only)
 end
 
 function M.show(title, result, owner)
-	local config = require("arf").config
+	local config = require("arf.config").get()
 	require("arf.float").open(title, require("arf.output").full_lines(result), {
-		width = config.float_width,
-		max_height = config.float_max_height,
+		width = config.float_window.width,
+		max_height = config.float_window.max_height,
 		owner = owner,
 	})
 end

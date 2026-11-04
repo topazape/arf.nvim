@@ -4,7 +4,7 @@ local float = require("arf.float")
 local results = require("arf.results")
 local source = vim.api.nvim_get_current_buf()
 vim.api.nvim_buf_set_lines(source, 0, -1, false, { "x", "y", "z" })
-arf.setup({ float_width = 500, float_max_height = 500 })
+arf.setup({ float_window = { width = 500, max_height = 500 } })
 local notices = {}
 vim.notify = function(message)
 	notices[#notices + 1] = message
@@ -64,7 +64,7 @@ for _, map in ipairs(vim.api.nvim_buf_get_keymap(vim.api.nvim_win_get_buf(replac
 end
 assert(not vim.api.nvim_win_is_valid(replacement), "q closes float")
 vim.api.nvim_set_current_buf(source)
-arf.setup({ float_width = "auto" })
+arf.setup({ float_window = { width = "auto" } })
 local auto = arf.output()
 assert(vim.api.nvim_win_get_config(auto).width == vim.o.columns - 4, "auto uses editor width")
 float.close()
@@ -75,7 +75,7 @@ assert(vim.api.nvim_win_get_config(resized).width == vim.o.columns - 4, "auto re
 float.close()
 for _, percent in ipairs({ 1, 90, 100 }) do
 	vim.api.nvim_set_current_buf(source)
-	arf.setup({ float_width = percent .. "%" })
+	arf.setup({ float_window = { width = percent .. "%" } })
 	local percentage = arf.output()
 	local expected = math.max(1, math.min(math.floor(vim.o.columns * percent / 100), vim.o.columns - 4))
 	assert(
@@ -86,7 +86,7 @@ for _, percent in ipairs({ 1, 90, 100 }) do
 end
 vim.o.columns = vim.o.columns + 20
 vim.api.nvim_set_current_buf(source)
-arf.setup({ float_width = "90%" })
+arf.setup({ float_window = { width = "90%" } })
 local percentage_resized = arf.output()
 assert(
 	vim.api.nvim_win_get_config(percentage_resized).width == math.floor(vim.o.columns * 0.9),

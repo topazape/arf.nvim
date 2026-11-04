@@ -11,6 +11,7 @@ if strict then
 end
 local suites = {
 	"run_all",
+	"execution",
 	"inspect",
 	"objects",
 	"object_picker_snacks",
@@ -24,6 +25,7 @@ local suites = {
 	"plots",
 	"plot_capture",
 	"config",
+	"documentation",
 	"commands",
 	"clipboard",
 	"float",
