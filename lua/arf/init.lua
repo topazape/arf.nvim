@@ -22,6 +22,7 @@ M.config = {
 		range = { text = "│", hl = "ArfSignRange" },
 		success = { text = "│", hl = "ArfSignSuccess" },
 		error = { text = "│", hl = "ArfSignError" },
+		interrupted = { text = "│", hl = "ArfSignInterrupted" },
 		running = {
 			text = "…",
 			hl = "ArfSignRunning",

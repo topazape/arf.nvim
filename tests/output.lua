@@ -87,3 +87,8 @@ eq(#lines, 4, "notices do not consume preview body limit")
 eq(lines[3][1][1], "… 1 more lines (view with :ArfOutput)", "omitted line count")
 eq(lines[4][1][2], "ArfWarning", "retention notice")
 print("output tests passed (" .. checks .. " checks)")
+
+eq(output.full_lines({ text = "partial", status = "interrupted", error = "R evaluation interrupted" }), {
+	{ { "partial", "ArfOutput" } },
+	{ { "R evaluation interrupted", "ArfInterrupted" } },
+}, "interruption retains partial output and uses its own highlight without an error prefix")

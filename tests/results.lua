@@ -200,3 +200,15 @@ check(results.latest_plot() == nil, "cleared plots cannot be copied")
 vim.api.nvim_buf_delete(first_buf, { force = true })
 vim.api.nvim_buf_delete(second_buf, { force = true })
 print("results tests passed (" .. checks .. " checks)")
+
+local interrupted_buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(interrupted_buf, 0, -1, false, { "slow()" })
+results.put(interrupted_buf, 0, 0, {
+	text = "partial",
+	status = "interrupted",
+	error = "R evaluation interrupted",
+	cleanup = function() end,
+})
+local interrupted_marks = vim.api.nvim_buf_get_extmarks(interrupted_buf, signs.namespace, 0, -1, { details = true })
+check(interrupted_marks[1][4].sign_hl_group == "ArfSignInterrupted", "result status selects interrupted sign")
+results.clear(interrupted_buf)

@@ -109,6 +109,7 @@ local function apply_palette(palette)
 		ArfMessage = { fg = palette.info },
 		ArfStderr = { fg = palette.warning },
 		ArfError = { fg = palette.error },
+		ArfInterrupted = { fg = palette.warning },
 		ArfWarning = { fg = palette.warning },
 		ArfFloatNormal = { fg = palette.fg, bg = palette.float_bg },
 		ArfFloatOutput = { fg = palette.float_fg, bg = palette.float_bg },
@@ -116,6 +117,7 @@ local function apply_palette(palette)
 		ArfFloatMessage = { fg = palette.info, bg = palette.float_bg },
 		ArfFloatStderr = { fg = palette.warning, bg = palette.float_bg },
 		ArfFloatError = { fg = palette.error, bg = palette.float_bg },
+		ArfFloatInterrupted = { fg = palette.warning, bg = palette.float_bg },
 		ArfFloatWarning = { fg = palette.warning, bg = palette.float_bg },
 		ArfFloatEmpty = { fg = palette.output, bg = palette.float_bg },
 		ArfFloatBorder = { fg = palette.border, bg = palette.float_bg },
@@ -124,6 +126,7 @@ local function apply_palette(palette)
 		ArfSignRunning = { fg = palette.info },
 		ArfSignSuccess = { fg = palette.success },
 		ArfSignError = { fg = palette.error },
+		ArfSignInterrupted = { fg = palette.warning },
 	}
 	for name, definition in pairs(definitions) do
 		set_default(name, definition)
@@ -155,15 +158,18 @@ function M.apply(selected_theme)
 		ArfStderr = "DiagnosticWarn",
 		ArfSignRunning = "DiagnosticInfo",
 		ArfError = "DiagnosticError",
+		ArfInterrupted = "DiagnosticWarn",
 		ArfWarning = "DiagnosticWarn",
 		ArfFloatMessage = "ArfMessage",
 		ArfFloatStderr = "ArfStderr",
 		ArfFloatError = "ArfError",
+		ArfFloatInterrupted = "ArfInterrupted",
 		ArfFloatWarning = "ArfWarning",
 		ArfFloatEmpty = "ArfFloatOutput",
 		ArfSignRange = "ArfSeparator",
 		ArfSignSuccess = "DiagnosticOk",
 		ArfSignError = "DiagnosticError",
+		ArfSignInterrupted = "DiagnosticWarn",
 	}
 	for name, target in pairs(links) do
 		set_default(name, { link = target })

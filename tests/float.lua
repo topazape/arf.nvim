@@ -99,3 +99,18 @@ local owned = vim.api.nvim_get_current_win()
 arf.clear(source)
 assert(not vim.api.nvim_win_is_valid(owned), "clear closes saved-output float")
 print("saved output and float tests passed")
+
+local interrupted = float.open(
+	"interrupted",
+	{ { { "R evaluation interrupted", "ArfInterrupted" } } },
+	{ width = 40, max_height = 5, owner = source }
+)
+local interrupted_marks = vim.api.nvim_buf_get_extmarks(
+	vim.api.nvim_win_get_buf(interrupted),
+	vim.api.nvim_create_namespace("arf.float"),
+	0,
+	-1,
+	{ details = true }
+)
+assert(interrupted_marks[1][4].hl_group == "ArfFloatInterrupted")
+float.close(source)

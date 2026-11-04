@@ -215,6 +215,7 @@ Supply trusted R code. Functions already defined in the R session can also be pa
 - `ArfRun` / `ArfRunAll` show per-expression wall-clock time, including IPC and result processing but excluding initial session startup.
 - `ArfRunAll` runs top-level expressions in the existing session, stopping at the first R error or IPC failure. Completed results and existing results not reached remain. `:%ArfRun` evaluates the buffer as one range, with combined output at the end.
 - Results appear below the executed range. Editing keeps the previous output dimmed and removes execution signs. Rerunning replaces the result; deleting the entire range removes it. Other ranges do not update automatically: rerun dependent expressions after changing data or variables.
+- Interrupted evaluations use dedicated `ArfInterrupted`, `ArfFloatInterrupted`, and `ArfSignInterrupted` highlights, with amber/yellow status colors. Customize the sign with `signs.interrupted = { text = "│", hl = "ArfSignInterrupted" }`; the `auto` theme follows `DiagnosticWarn`.
 - Editing, clearing, or unloading the source buffer while evaluation is pending discards its result and stops subsequent expressions, without interrupting R.
 - All buffers in a Neovim instance share one R session. Automatically started sessions use `:pwd` at the first evaluation; later `:cd` changes do not affect R. External sessions retain their existing working directory. Neovim exits stop only automatically started sessions.
 

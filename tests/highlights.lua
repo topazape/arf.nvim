@@ -29,6 +29,9 @@ for _, colors in ipairs({ { 0xffffff, 0x000000 }, { 0x000000, 0xffffff } }) do
 		ArfSignRunning = "DiagnosticInfo",
 		ArfSignSuccess = "DiagnosticOk",
 		ArfSignError = "DiagnosticError",
+		ArfInterrupted = "DiagnosticWarn",
+		ArfFloatInterrupted = "ArfInterrupted",
+		ArfSignInterrupted = "DiagnosticWarn",
 		ArfWarning = "DiagnosticWarn",
 		ArfFloatBorder = "FloatBorder",
 		ArfFloatTitle = "FloatTitle",
@@ -167,3 +170,12 @@ local background_result = vim.system({
 }, { text = true }):wait(10000)
 assert(background_result.code == 0, background_result.stdout .. background_result.stderr)
 print("highlight tests passed")
+
+for _, selected in ipairs({ "default", "neon" }) do
+	vim.cmd("highlight clear")
+	highlights.apply(selected)
+	assert(get("ArfInterrupted").fg == get("ArfWarning").fg)
+	assert(get("ArfInterrupted").fg ~= get("ArfError").fg)
+	assert(get("ArfSignInterrupted").fg == get("ArfInterrupted").fg)
+	assert(get("ArfFloatInterrupted").fg == get("ArfInterrupted").fg)
+end

@@ -120,7 +120,8 @@ function M.put(buf, first, last, result, running)
 		running = running,
 		mark = vim.api.nvim_buf_set_extmark(buf, ns, last, 0, {}),
 	}
-	entry.signs = require("arf.signs").place(buf, first, last, result.error ~= nil, running)
+	entry.signs =
+		require("arf.signs").place(buf, first, last, result.error ~= nil, running, result.status == "interrupted")
 	keep[#keep + 1] = entry
 	state.entries = keep
 	require("arf.display").refresh()
