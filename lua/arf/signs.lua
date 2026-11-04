@@ -58,7 +58,7 @@ function M.validate(config)
 			and config.priority == math.floor(config.priority),
 		"arf: signs.priority must be a non-negative integer"
 	)
-	for _, key in ipairs({ "range", "success", "error", "running" }) do
+	for _, key in ipairs({ "range", "success", "error", "interrupted", "running" }) do
 		local sign = config[key]
 		assert(type(sign) == "table", "arf: signs." .. key .. " must be a table")
 		assert(
@@ -95,7 +95,7 @@ function M.validate(config)
 	)
 end
 
-function M.place(buf, first, last, failed, running)
+function M.place(buf, first, last, failed, running, interrupted)
 	require("arf.highlights")
 	local config = require("arf").config.signs
 	local ids = {}
@@ -103,7 +103,10 @@ function M.place(buf, first, last, failed, running)
 		return ids
 	end
 	local final_id
-	local status = running and config.running or failed and config.error or config.success
+	local status = running and config.running
+		or interrupted and config.interrupted
+		or failed and config.error
+		or config.success
 	for row = first, last do
 		local text = row == last and status.text or config.range.text
 		local hl = status.hl

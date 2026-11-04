@@ -16,15 +16,17 @@ arf.setup({
 		range = { text = "|", hl = "Comment" },
 		success = { text = "+", hl = "String" },
 		error = { text = "!", hl = "ErrorMsg" },
+		interrupted = { text = "~", hl = "DiagnosticWarn" },
 		running = { text = "?", hl = "WarningMsg", frames = {}, interval = 5 },
 	},
 })
 for _, case in ipairs({
 	{ false, false, "+", "String" },
 	{ true, false, "!", "ErrorMsg" },
+	{ true, false, "~", "DiagnosticWarn", true },
 	{ false, true, "?", "WarningMsg" },
 }) do
-	local ids = signs.place(buf, 0, 2, case[1], case[2])
+	local ids = signs.place(buf, 0, 2, case[1], case[2], case[5])
 	local placed = marks()
 	assert(#placed == 3 and placed[1][4].sign_text:match("^|"))
 	for _, mark in ipairs(placed) do

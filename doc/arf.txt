@@ -55,6 +55,7 @@ supplied options into the current configuration.
         range = { text = "│", hl = "ArfSignRange" },
         success = { text = "│", hl = "ArfSignSuccess" },
         error = { text = "│", hl = "ArfSignError" },
+        interrupted = { text = "│", hl = "ArfSignInterrupted" },
         running = {
           text = "…",             -- Initial symbol; also used when animation is disabled
           hl = "ArfSignRunning",
@@ -154,9 +155,10 @@ SIGNS                                                             *arf-signs*
 - signs.running.interval: a positive frame interval in milliseconds; defaults
   to 80.
 
-By default, successful and failed ranges use │ on every line, colored by
-signs.success.hl or signs.error.hl. Running ranges use signs.running.hl
-throughout, with a spinner on the last line. Nerd Font is not required.
+By default, successful, failed, and interrupted ranges use │ on every line,
+colored by signs.success.hl, signs.error.hl, or signs.interrupted.hl.
+Running ranges use signs.running.hl throughout, with a spinner on the last
+line. Nerd Font is not required.
 signs.range.hl and ArfSignRange are retained for compatibility but no longer
 control range colors.
 
@@ -284,6 +286,9 @@ ArfFloatStderr
 ArfFloatError
     errors inside floats. Auto theme default: ArfError.
 
+ArfFloatInterrupted
+    interrupted evaluations inside floats. Auto theme default: ArfInterrupted.
+
 ArfFloatWarning
     notices inside floats. Auto theme default: ArfWarning.
 
@@ -302,6 +307,11 @@ ArfSignRunning
 ArfError
     execution errors. Auto theme default: DiagnosticError.
 
+ArfInterrupted
+    interrupted evaluations, without the R error prefix. Auto theme default:
+    DiagnosticWarn. Default theme uses muted amber; neon uses vivid yellow,
+    matching each theme's warning color for dark and light backgrounds.
+
 ArfWarning
     notices, including image display warnings. Auto theme default:
     DiagnosticWarn.
@@ -314,6 +324,9 @@ ArfSignSuccess
 
 ArfSignError
     error sign. Auto theme default: DiagnosticError.
+
+ArfSignInterrupted
+    interrupted evaluation sign. Auto theme default: DiagnosticWarn.
 
 In the "auto" theme, colors come from standard colorscheme groups. When RGB
 foreground or background is unavailable, output links to its source group and

@@ -102,8 +102,9 @@ local function content(result)
 	local chunks = vim.list_extend({}, result.chunks or { { text = result.text, highlight = "ArfOutput" } })
 	local text = result.text
 	if result.error then
-		local error = (text ~= "" and "\n" or "") .. "R error: " .. result.error
-		chunks[#chunks + 1] = { text = error, highlight = "ArfError" }
+		local interrupted = result.status == "interrupted"
+		local error = (text ~= "" and "\n" or "") .. (interrupted and "" or "R error: ") .. result.error
+		chunks[#chunks + 1] = { text = error, highlight = interrupted and "ArfInterrupted" or "ArfError" }
 		text = text .. error
 	end
 	return text, chunks
