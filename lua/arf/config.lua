@@ -1,10 +1,10 @@
 local M = {}
 local current = {
 	executable = "arf",
-	startup_timeout = 10000,
-	eval_timeout = 300000,
-	output = { max_bytes = 1048576, tibble = { max_rows = false, width = "auto" } },
-	inline = { max_lines = 20 },
+	startup_timeout_ms = 10000,
+	eval_timeout_ms = 300000,
+	output = { max_bytes = 1048576, tibble = { max_rows = "inherit", width = "auto" } },
+	inline = { max_lines = 20, border = "line" },
 	float_window = { width = "60%", max_height = 30 },
 	image = {
 		render = { width_px = 1200, height_px = 800, dpi = 180 },
@@ -22,7 +22,7 @@ local current = {
 			text = "…",
 			hl = "ArfSignRunning",
 			frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
-			interval = 80,
+			interval_ms = 80,
 		},
 	},
 }
@@ -75,8 +75,8 @@ local function validate(config)
 	if config.pid ~= nil then
 		positive(config.pid, "pid")
 	end
-	positive(config.startup_timeout, "startup_timeout")
-	positive(config.eval_timeout, "eval_timeout")
+	positive(config.startup_timeout_ms, "startup_timeout_ms")
+	positive(config.eval_timeout_ms, "eval_timeout_ms")
 	positive(config.output.max_bytes, "output.max_bytes")
 	positive(config.inline.max_lines, "inline.max_lines")
 	positive(config.float_window.max_height, "float_window.max_height")
@@ -86,11 +86,20 @@ local function validate(config)
 	for _, key in ipairs({ "max_width", "max_height" }) do
 		positive(config.image.display[key], "image.display." .. key)
 	end
+	expect(
+		config.inline.border == "rounded"
+			or config.inline.border == "single"
+			or config.inline.border == "double"
+			or config.inline.border == "line"
+			or config.inline.border == "none",
+		"inline.border",
+		'"rounded", "single", "double", "line", or "none"'
+	)
 	local tibble = config.output.tibble
-	if tibble.max_rows ~= false then
+	if tibble.max_rows ~= "inherit" then
 		positive(tibble.max_rows, "output.tibble.max_rows")
 	end
-	if tibble.width ~= false and tibble.width ~= "auto" and tibble.width ~= "all" then
+	if tibble.width ~= "inherit" and tibble.width ~= "auto" and tibble.width ~= "all" then
 		positive(tibble.width, "output.tibble.width")
 	end
 	local width = config.float_window.width
@@ -122,7 +131,7 @@ local function validate(config)
 	for _, frame in ipairs(signs.running.frames) do
 		symbol(frame, "signs.running.frames", false)
 	end
-	positive(signs.running.interval, "signs.running.interval")
+	positive(signs.running.interval_ms, "signs.running.interval_ms")
 end
 
 function M.get()

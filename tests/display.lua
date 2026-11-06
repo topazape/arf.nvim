@@ -1,5 +1,6 @@
 -- Run with: nvim --headless -u NONE -l tests/display.lua
 vim.opt.rtp:prepend(vim.fn.getcwd())
+require("arf").setup({ inline = { border = "rounded" } })
 local checks = 0
 local function check(value, message)
 	checks = checks + 1
@@ -41,9 +42,9 @@ end
 check(timing().virt_text_pos == "eol_right_align", "time aligns after code without overlay")
 check(timing().virt_text[1][1] == "2.43s", "time coexists with output and image warning")
 local lines = rendered()
-check(lines[2][1][1] == "text survives", "text displays without image dependency")
-check(lines[3][1][1]:find("snacks.nvim is required", 1, true), "missing backend has inline warning")
-check(#lines == 4 and lines[4][1][1] == "", "blank line follows image warning")
+check(lines[2][2][1] == "text survives", "text displays without image dependency")
+check(lines[3][2][1]:find("snacks.nvim is required", 1, true), "missing backend has inline warning")
+check(#lines == 5 and lines[5][1][1] == "", "blank line follows image warning")
 local created, shown, updated, closed = 0, 0, 0, 0
 local opts
 local fail_show, fail_close
@@ -106,8 +107,8 @@ for _, inline in ipairs({ false, true }) do
 		#placement.eids == 0 and #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0,
 		"transfer image marks out of Snacks namespace"
 	)
-	check(rendered()[3][1][1] == "placeholder", "render both multi-row and one-row image grids below text")
-	check(#rendered() == 4 and rendered()[4][1][1] == "", "blank line follows image grid")
+	check(rendered()[3][2][1] == "placeholder", "render both multi-row and one-row image grids below text")
+	check(#rendered() == 5 and rendered()[5][1][1] == "", "blank line follows image grid")
 end
 vim.api.nvim_buf_set_lines(buf, 0, 0, false, { "inserted" })
 drain()
@@ -116,7 +117,7 @@ vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "plot(x + 1)" })
 drain()
 check(entry.stale and created == 1 and closed == 0 and cleaned == 0, "source edit retains image and resources")
 check(
-	rendered()[2][1][1] == "text survives" and rendered()[2][1][2] == "ArfOutputStale",
+	rendered()[2][2][1] == "text survives" and rendered()[2][2][2] == "ArfOutputStale",
 	"dim stale image text without adding lines"
 )
 check(timing().virt_text[1][2] == "ArfElapsedStale", "source edit dims elapsed time")
@@ -124,7 +125,7 @@ check(rendered()[1][1][2] == "ArfSeparator", "stale output keeps normal separato
 fail_show = true
 display.refresh()
 drain()
-check(rendered()[2][1][1] == "text survives", "image update failure preserves text")
+check(rendered()[2][2][1] == "text survives", "image update failure preserves text")
 check(vim.inspect(rendered()):find("show failed", 1, true), "image update failure is visible")
 fail_show = false
 display.refresh()
@@ -192,17 +193,17 @@ end
 entry = results.put(buf, 1, 1, { text = "still visible", paths = { "unused.png" }, cleanup = function() end })
 drain()
 check(
-	rendered()[2][1][1] == "still visible" and rendered()[3][1][1]:find("placement failed", 1, true),
+	rendered()[2][2][1] == "still visible" and rendered()[3][2][1]:find("placement failed", 1, true),
 	"placement failure keeps text and shows warning"
 )
-check(#rendered() == 4 and rendered()[4][1][1] == "", "blank line follows placement failure")
+check(#rendered() == 5 and rendered()[5][1][1] == "", "blank line follows placement failure")
 results.clear(buf)
 entry = results.put(buf, 1, 1, { text = "first\nsecond", cleanup = function() end })
 drain()
-check(#rendered() == 4 and rendered()[4][1][1] == "", "blank line follows text output")
+check(#rendered() == 5 and rendered()[5][1][1] == "", "blank line follows text output")
 display.refresh()
 drain()
-check(#rendered() == 4, "refresh does not accumulate blank lines")
+check(#rendered() == 5, "refresh does not accumulate blank lines")
 check(
 	vim.deep_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), { "inserted", "x <- 1", "plot(x + 1)" }),
 	"display spacing leaves source lines unchanged"
@@ -221,8 +222,8 @@ local previous_count = #rendered()
 vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "x <- 3" })
 drain()
 check(entry.stale and #rendered() == previous_count, "stale output keeps row count")
-check(rendered()[2][1][1] == "saved text" and rendered()[2][1][2] == "ArfOutputStale", "dim stale text")
-check(rendered()[3][1][2] == "ArfError", "preserve error color")
+check(rendered()[2][2][1] == "saved text" and rendered()[2][2][2] == "ArfOutputStale", "dim stale text")
+check(rendered()[3][2][2] == "ArfError", "preserve error color")
 vim.api.nvim_win_set_cursor(0, { 2, 0 })
 local win = require("arf").output()
 local float_lines = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), 0, -1, false)
@@ -246,12 +247,117 @@ package.loaded["arf.expression"] = {
 }
 vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "continuation" })
 drain()
-check(entry.last == 2 and rendered()[2][1][2] == "ArfOutputStale", "follow extended expression")
+check(entry.last == 2 and rendered()[2][2][2] == "ArfOutputStale", "follow extended expression")
 check(vim.api.nvim_buf_get_extmark_by_id(buf, results.namespace, entry.mark, {})[1] == 2, "move output anchor")
 package.loaded["arf.expression"] = original_expression
 entry = results.put(buf, 1, 2, { text = "new result", cleanup = function() end })
 drain()
-check(rendered()[2][1][2] == "ArfOutput" and rendered()[1][1][2] == "ArfSeparator", "rerun restores normal colors")
+check(rendered()[2][2][2] == "ArfOutput" and rendered()[1][1][2] == "ArfSeparator", "rerun restores normal colors")
+results.clear(buf)
+local function line_text(line)
+	local parts = {}
+	for _, chunk in ipairs(line) do
+		parts[#parts + 1] = chunk[1]
+	end
+	return table.concat(parts)
+end
+local width = vim.api.nvim_win_get_width(0) - vim.fn.getwininfo(vim.api.nvim_get_current_win())[1].textoff
+entry = results.put(buf, 1, 1, {
+	text = "日本語\té",
+	cleanup = function() end,
+})
+drain()
+lines = rendered()
+check(line_text(lines[1]) == "╭" .. string.rep("─", width - 2) .. "╮", "top border spans text area")
+check(line_text(lines[3]) == "╰" .. string.rep("─", width - 2) .. "╯", "bottom border spans text area")
+check(vim.fn.strdisplaywidth(line_text(lines[2])) == width, "wide text, combining marks and tabs fit frame")
+check(lines[2][2][1]:find("日本語", 1, true) and not line_text(lines[2]):find("\t"), "expand tabs inside frame")
+entry = results.put(buf, 1, 1, {
+	text = string.rep("界", width) .. "tail",
+	chunks = {
+		{ text = string.rep("界", width), highlight = "ArfOutput" },
+		{ text = "tail", highlight = "ArfError" },
+	},
+	cleanup = function() end,
+})
+drain()
+local clipped = line_text(rendered()[2])
+check(
+	vim.fn.strdisplaywidth(clipped) == width and clipped:sub(-#" │") == " │",
+	"long output preserves right border"
+)
+check(not clipped:find("tail", 1, true), "clipping stops before subsequent chunks")
+check(entry.result.text:find("tail", 1, true), "clipping retains full saved output")
+for _, border in ipairs({ "line", "none", "single", "double", "rounded" }) do
+	require("arf").setup({ inline = { border = border } })
+	display.refresh()
+	drain()
+	lines = rendered()
+	if border == "rounded" or border == "single" or border == "double" then
+		local styles = {
+			single = { "┌", "┐", "└", "┘" },
+			rounded = { "╭", "╮", "╰", "╯" },
+			double = { "╔", "╗", "╚", "╝" },
+		}
+		local corners = styles[border]
+		local horizontal = border == "double" and "═" or "─"
+		local vertical = border == "double" and "║" or "│"
+		check(#lines == 4, "framed output keeps border rows: " .. border)
+		check(lines[2][1][1] == vertical .. " ", "left side: " .. border)
+		local right = lines[2][#lines[2]][1]
+		check(right:sub(-#vertical) == vertical, "right side: " .. border)
+		check(
+			line_text(lines[1]) == corners[1] .. string.rep(horizontal, width - 2) .. corners[2],
+			"top corners: " .. border
+		)
+		check(
+			line_text(lines[3]) == corners[3] .. string.rep(horizontal, width - 2) .. corners[4],
+			"bottom corners: " .. border
+		)
+		check(vim.fn.strdisplaywidth(line_text(lines[2])) == width, "framed output fits width: " .. border)
+	else
+		local offset = border == "line" and 1 or 0
+		check(#lines == 2 + offset, "only line mode reserves a separator row")
+		check(line_text(lines[1 + offset]) == entry.result.text, "unframed modes retain long output")
+		if border == "line" then
+			check(line_text(lines[1]) == string.rep("─", width), "line mode preserves original separator")
+		end
+	end
+end
+-- A shared frame must remain closed in both differently sized windows.
+vim.cmd("vsplit")
+local narrow_frame_win = vim.api.nvim_get_current_win()
+vim.api.nvim_win_set_width(narrow_frame_win, 20)
+local narrow_width = vim.api.nvim_win_get_width(narrow_frame_win) - vim.fn.getwininfo(narrow_frame_win)[1].textoff
+for _, border in ipairs({ "single", "double", "rounded" }) do
+	require("arf").setup({ inline = { border = border } })
+	display.refresh()
+	drain()
+	for _, line in ipairs({ rendered()[1], rendered()[2], rendered()[3] }) do
+		check(vim.fn.strdisplaywidth(line_text(line)) == narrow_width, "frame fits narrow split: " .. border)
+	end
+end
+vim.api.nvim_win_close(narrow_frame_win, true)
+drain()
+check(vim.fn.strdisplaywidth(line_text(rendered()[1])) == width, "closing narrow split restores full frame width")
+-- Hidden tabs do not constrain the active tab's frame.
+vim.cmd("tab split")
+vim.cmd("vsplit")
+vim.api.nvim_win_set_width(0, 10)
+vim.cmd("tabprevious")
+drain()
+check(vim.fn.strdisplaywidth(line_text(rendered()[1])) == width, "hidden narrow tab does not shrink frame")
+vim.cmd("tabnext")
+for _, tiny_width in ipairs({ 1, 2, 3 }) do
+	vim.api.nvim_win_set_width(0, tiny_width)
+	vim.api.nvim_exec_autocmds("WinResized", {})
+	drain()
+	for _, line in ipairs({ rendered()[1], rendered()[2], rendered()[3] }) do
+		check(vim.fn.strdisplaywidth(line_text(line)) == tiny_width, "frame fits tiny text area")
+	end
+end
+vim.cmd("tabclose")
+drain()
 results.clear(buf)
 vim.api.nvim_buf_delete(buf, { force = true })
 print("display tests passed (" .. checks .. " checks)")

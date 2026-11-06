@@ -15,7 +15,7 @@ function M.eval(source, config, callback)
 		cleanup()
 		return callback(nil, tostring(code))
 	end
-	local args = { config.executable, "ipc", "eval", "--visible", "--timeout", tostring(config.eval_timeout) }
+	local args = { config.executable, "ipc", "eval", "--visible", "--timeout", tostring(config.eval_timeout_ms) }
 	if config.pid then
 		vim.list_extend(args, { "--pid", tostring(config.pid) })
 	end

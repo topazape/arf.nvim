@@ -1,6 +1,6 @@
 -- Run with: nvim --headless -u NONE -l tests/plots.lua
 vim.opt.rtp:prepend(vim.fn.getcwd())
-require("arf").setup({})
+require("arf").setup({ inline = { border = "rounded" } })
 local buf = vim.api.nvim_get_current_buf()
 vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "plot(model)", "next" })
 local created, closed, callbacks, positions = {}, {}, {}, {}
@@ -48,10 +48,10 @@ local function lines()
 end
 flush()
 assert(#created == 4)
-assert(lines()[3][1][1] == "one.png" and lines()[6][1][1] == "four.png", "stack in generation order")
+assert(lines()[3][2][1] == "one.png" and lines()[6][2][1] == "four.png", "stack in generation order")
 callbacks["two.png"]({ { { "updated", "Normal" } }, { { "second row", "Normal" } } })
 flush()
-assert(lines()[4][1][1] == "updated" and lines()[7][1][1] == "four.png", "async resize keeps order")
+assert(lines()[4][2][1] == "updated" and lines()[7][2][1] == "four.png", "async resize keeps order")
 vim.api.nvim_buf_set_lines(buf, 0, 0, false, { "before" })
 flush()
 for _, row in pairs(positions) do

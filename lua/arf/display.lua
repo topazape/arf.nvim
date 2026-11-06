@@ -81,20 +81,72 @@ local function image_lines(backend, buf, entry)
 	return lines
 end
 
-local function text_width(buf)
-	local width = 1
+local function text_width(buf, framed)
+	local width
 	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
 		local info = vim.fn.getwininfo(win)[1]
-		if info then
-			width = math.max(width, vim.api.nvim_win_get_width(win) - info.textoff)
+		if info and vim.api.nvim_win_get_tabpage(win) == vim.api.nvim_get_current_tabpage() then
+			local available = math.max(1, vim.api.nvim_win_get_width(win) - info.textoff)
+			width = width and (framed and math.min(width, available) or math.max(width, available)) or available
 		end
 	end
-	return width
+	return width or 1
+end
+
+-- Keep chunk highlights (including Kitty image placeholders) inside the frame.
+local frame_styles = {
+	rounded = { "╭", "╮", "╰", "╯", "─", "│" },
+	single = { "┌", "┐", "└", "┘", "─", "│" },
+	double = { "╔", "╗", "╚", "╝", "═", "║" },
+}
+
+local function frame(lines, width, border)
+	local corners = frame_styles[border]
+	-- Extremely narrow windows cannot hold padding or two border columns.
+	if width == 1 then
+		local framed = { { { corners[5], "ArfSeparator" } } }
+		for _ in ipairs(lines) do
+			framed[#framed + 1] = { { corners[6], "ArfSeparator" } }
+		end
+		framed[#framed + 1] = { { corners[5], "ArfSeparator" } }
+		framed[#framed + 1] = { { "", "ArfOutput" } }
+		return framed
+	end
+	local padding = width >= 4 and " " or ""
+	local framed = { { { corners[1] .. string.rep(corners[5], width - 2) .. corners[2], "ArfSeparator" } } }
+	local inner = width - 2 - #padding * 2
+	for _, line in ipairs(lines) do
+		local row = { { corners[6] .. padding, "ArfSeparator" } }
+		local used = 0
+		for _, chunk in ipairs(line) do
+			local parts, clipped = {}, false
+			for index = 0, vim.fn.strchars(chunk[1], true) - 1 do
+				local char = vim.fn.strcharpart(chunk[1], index, 1, true)
+				local size = vim.fn.strdisplaywidth(char, used + 1 + #padding)
+				if used + size > inner then
+					clipped = true
+					break
+				end
+				parts[#parts + 1] = char == "\t" and string.rep(" ", size) or char
+				used = used + size
+			end
+			row[#row + 1] = { table.concat(parts), chunk[2] }
+			if clipped or used >= inner then
+				break
+			end
+		end
+		row[#row + 1] = { string.rep(" ", inner - used) .. padding .. corners[6], "ArfSeparator" }
+		framed[#framed + 1] = row
+	end
+	framed[#framed + 1] = { { corners[3] .. string.rep(corners[5], width - 2) .. corners[4], "ArfSeparator" } }
+	framed[#framed + 1] = { { "", "ArfOutput" } }
+	return framed
 end
 
 local function draw_entry(buf, entry, width, images)
 	local output = require("arf.output")
-	local lines = output.preview(entry.result, require("arf.config").get().inline.max_lines)
+	local inline = require("arf.config").get().inline
+	local lines = output.preview(entry.result, inline.max_lines)
 	if entry.stale then
 		output.stale(lines)
 	end
@@ -102,8 +154,14 @@ local function draw_entry(buf, entry, width, images)
 		vim.list_extend(lines, images(buf, entry))
 	end
 	if #lines > 0 then
-		table.insert(lines, 1, { { string.rep("─", width), "ArfSeparator" } })
-		lines[#lines + 1] = { { "", "ArfOutput" } }
+		if frame_styles[inline.border] then
+			lines = frame(lines, width, inline.border)
+		else
+			if inline.border == "line" then
+				table.insert(lines, 1, { { string.rep("─", width), "ArfSeparator" } })
+			end
+			lines[#lines + 1] = { { "", "ArfOutput" } }
+		end
 	end
 	set_lines(buf, entry, lines)
 end
@@ -123,8 +181,8 @@ local function draw()
 	end
 	for buf, read_entries in pairs(sources) do
 		if vim.api.nvim_buf_is_loaded(buf) then
-			-- Shared virtual lines use the widest text area; narrower windows clip them.
-			local width = text_width(buf)
+			-- Shared frames must fit the narrowest window; plain separators can clip.
+			local width = text_width(buf, frame_styles[require("arf.config").get().inline.border] ~= nil)
 			for _, entry in ipairs(read_entries()) do
 				draw_entry(buf, entry, width, images)
 			end
@@ -144,7 +202,7 @@ function M.refresh()
 end
 
 local group = vim.api.nvim_create_augroup("arf.display", { clear = true })
-vim.api.nvim_create_autocmd({ "BufWinEnter", "WinResized", "VimResized", "TabEnter" }, {
+vim.api.nvim_create_autocmd({ "BufWinEnter", "WinResized", "VimResized", "TabEnter", "WinClosed" }, {
 	group = group,
 	callback = M.refresh,
 })

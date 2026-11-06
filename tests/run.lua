@@ -9,6 +9,7 @@ local suites = {
 	"results",
 	"session",
 	"executor",
+	"r_code",
 	"expression",
 	"display",
 	"plots",

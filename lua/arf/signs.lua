@@ -23,8 +23,8 @@ local function animate(buf, id, ids, config)
 	ids.timer = timer
 	local frame = 0
 	timer:start(
-		running.interval,
-		running.interval,
+		running.interval_ms,
+		running.interval_ms,
 		vim.schedule_wrap(function()
 			if ids.timer ~= timer then
 				return

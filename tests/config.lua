@@ -1,6 +1,7 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local arf = require("arf")
 local defaults = vim.deepcopy(arf.config)
+assert(defaults.inline.border == "line", "inline border defaults to line")
 arf.setup({ float_window = { width = 70 }, signs = { success = { text = "✓" } } })
 arf.setup({ float_window = { max_height = 12 } })
 assert(arf.config.float_window.width == 70 and arf.config.float_window.max_height == 12)
@@ -29,8 +30,8 @@ local function setting(path, value)
 end
 for _, path in ipairs({
 	"pid",
-	"startup_timeout",
-	"eval_timeout",
+	"startup_timeout_ms",
+	"eval_timeout_ms",
 	"output.max_bytes",
 	"output.tibble.max_rows",
 	"inline.max_lines",
@@ -62,23 +63,35 @@ for _, path in ipairs({
 	"float_width",
 	"output_width",
 	"timeout",
+	"startup_timeout",
+	"eval_timeout",
+	"signs.running.interval",
 	"output.typo",
 	"image.display.width",
 	"signs.range.hl",
 }) do
 	reject(setting(path, 1), path)
 end
-for _, value in ipairs({ false, "auto", "all", 160 }) do
+for _, value in ipairs({ "inherit", "auto", "all", 160 }) do
 	arf.setup({ output = { tibble = { width = value } } })
 	assert(arf.config.output.tibble.width == value)
 end
 for _, value in ipairs({ 0, -1, 1.5, math.huge, 0 / 0, "160", true, {} }) do
 	reject({ output = { tibble = { width = value } } }, "output.tibble.width")
 end
-for _, value in ipairs({ 100, false }) do
+for _, value in ipairs({ 100, "inherit" }) do
 	arf.setup({ output = { tibble = { max_rows = value } } })
 	assert(arf.config.output.tibble.max_rows == value)
 end
+for _, value in ipairs({ "rounded", "single", "double", "line", "none" }) do
+	arf.setup({ inline = { border = value } })
+	assert(arf.config.inline.border == value)
+end
+for _, value in ipairs({ false, true, "", "square", 1, {} }) do
+	reject({ inline = { border = value } }, "inline.border")
+end
+reject({ output = { tibble = { width = false } } }, "output.tibble.width")
+reject({ output = { tibble = { max_rows = false } } }, "output.tibble.max_rows")
 for _, value in ipairs({ "auto", 80, "1%", "90%", "100%" }) do
 	arf.setup({ float_window = { width = value } })
 	assert(arf.config.float_window.width == value)
@@ -96,7 +109,7 @@ for _, signs in ipairs({
 	{ success = { hl = "bad\nname" } },
 	{ running = { frames = { "" } } },
 	{ running = { frames = { bad = "x" } } },
-	{ running = { interval = 0 } },
+	{ running = { interval_ms = 0 } },
 }) do
 	reject({ signs = signs })
 end
