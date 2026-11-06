@@ -93,7 +93,7 @@ function M.ensure(config, callback)
 	session.process = process
 	session.timer = vim.defer_fn(function()
 		fail("Timed out starting arf")
-	end, config.startup_timeout)
+	end, config.startup_timeout_ms)
 end
 
 function M.stop()

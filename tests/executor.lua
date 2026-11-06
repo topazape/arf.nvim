@@ -4,7 +4,7 @@ local executor = require("arf.executor")
 local config = vim.tbl_deep_extend(
 	"force",
 	require("arf").config,
-	{ pid = 42, output = { max_bytes = 8, tibble = { width = false } } }
+	{ pid = 42, output = { max_bytes = 8, tibble = { width = "inherit" } } }
 )
 local original = vim.system
 local original_hrtime = vim.uv.hrtime
@@ -47,6 +47,8 @@ local function finish(code, stdout, stderr)
 end
 start()
 assert(not failure, failure)
+check(options.stdin:find(".arf_tibble_rows <- NULL", 1, true), "inherit rows preserves R options")
+check(options.stdin:find(".arf_tibble_width <- NULL", 1, true), "inherit width preserves R options")
 check(
 	vim.deep_equal(args, { "arf", "ipc", "eval", "--visible", "--timeout", "300000", "--pid", "42" }),
 	"IPC argument vector includes timeout and PID"

@@ -17,7 +17,7 @@ arf.setup({
 		success = { text = "+", hl = "String" },
 		error = { text = "!", hl = "ErrorMsg" },
 		interrupted = { text = "~", hl = "DiagnosticWarn" },
-		running = { text = "?", hl = "WarningMsg", frames = {}, interval = 5 },
+		running = { text = "?", hl = "WarningMsg", frames = {}, interval_ms = 5 },
 	},
 })
 for _, case in ipairs({

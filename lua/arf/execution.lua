@@ -45,8 +45,8 @@ local function options()
 	return {
 		executable = config.executable,
 		pid = config.pid,
-		startup_timeout = config.startup_timeout,
-		eval_timeout = config.eval_timeout,
+		startup_timeout_ms = config.startup_timeout_ms,
+		eval_timeout_ms = config.eval_timeout_ms,
 		output = output,
 		image = { render = vim.deepcopy(config.image.render) },
 	}
