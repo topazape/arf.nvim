@@ -165,12 +165,6 @@ require("arf").setup({
 
 `inline.border` accepts `"line"` (default), `"single"`, `"rounded"`, `"double"`, or `"none"`. Enclosed previews clip long lines to fit the narrowest window showing the buffer in the current tab. Open `:ArfOutput` to read the full retained text.
 
-When updating an existing configuration:
-
-- Rename `startup_timeout` and `eval_timeout` to `startup_timeout_ms` and `eval_timeout_ms`.
-- Rename `signs.running.interval` to `signs.running.interval_ms`. Values remain in milliseconds.
-- Replace `false` with `"inherit"` for `output.tibble.max_rows` and `output.tibble.width` to preserve R's settings. Old names and values are rejected.
-
 See [the help](doc/arf.txt) (`:help arf`) for all settings, commands, custom inspection, and troubleshooting. Full defaults: `:help arf-configuration`.
 
 ## Project philosophy
