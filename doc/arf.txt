@@ -209,16 +209,8 @@ arguments:
 CONFIGURATION                                             *arf-configuration*
 
 Set only the options you want to change, using opts in your lazy.nvim spec.
-Previous flat settings, signs.range.hl, and the Lua summary() shorthand are
-not supported. Use inspect("base::summary"); :ArfSummary remains available.
 Nested options merge individually. Unknown settings are rejected. Repeated
 calls to setup() merge the supplied options into the current configuration.
-
-When updating, rename startup_timeout and eval_timeout to startup_timeout_ms
-and eval_timeout_ms, and signs.running.interval to signs.running.interval_ms.
-Values remain in milliseconds. For output.tibble.max_rows and
-output.tibble.width, replace false with "inherit" to preserve R's settings.
-Old option names and false values for these tibble settings are rejected.
 
 >lua
     require("arf").setup({

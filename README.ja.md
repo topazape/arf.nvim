@@ -165,12 +165,6 @@ require("arf").setup({
 
 `inline.border` は `"line"`（既定）、`"single"`、`"rounded"`、`"double"`、`"none"` から選べます。囲み枠では、現在のタブで同じバッファを表示している最も狭いウィンドウに合わせて長い行を省略します。保持されている全文は `:ArfOutput` で確認できます。
 
-既存の設定を更新する場合：
-
-- `startup_timeout`・`eval_timeout` を `startup_timeout_ms`・`eval_timeout_ms` に変更。
-- `signs.running.interval` を `signs.running.interval_ms` に変更。値の単位はミリ秒のまま。
-- `output.tibble.max_rows`・`output.tibble.width` の `false` を `"inherit"` に変更。R 側の設定を引き継ぎます。旧名・旧値は受け付けません。
-
 全設定・コマンド・独自のオブジェクト検査・困ったときの対処は、[ヘルプ](doc/arf.txt)（`:help arf`）を参照してください。全設定の既定値は `:help arf-configuration` にあります。
 
 ## このプロジェクトについて
