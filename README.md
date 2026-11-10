@@ -22,7 +22,7 @@ Powered by [arf](https://github.com/eitsupi/arf).
 
 ## Requirements
 
-- **Neovim 0.12+**, **R**, and **[arf](https://github.com/eitsupi/arf) 0.7.0-beta.2+** on your PATH.
+- **Neovim 0.12+**, **R**, and **[arf](https://github.com/eitsupi/arf) 0.7.0+** on your PATH.
 - **R Tree-sitter parser** for expression selection and running the whole buffer.
 - For inline plots: **[Snacks](https://github.com/folke/snacks.nvim)** with `image` enabled, **ImageMagick**, and a compatible terminal such as **Ghostty** or **Kitty**.
 
