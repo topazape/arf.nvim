@@ -25,7 +25,7 @@ CONTENTS                                             *arf* *arf.nvim*
 ==============================================================================
 REQUIREMENTS                                               *arf-requirements*
 
-- Neovim 0.12 or later, R, and arf 0.7.0-beta.2 or later.
+- Neovim 0.12 or later, R, and arf 0.7.0 or later.
   Install arf from https://github.com/eitsupi/arf and put it on PATH, or set
   executable to its path.
 - An R Tree-sitter parser for automatic expression selection and ArfRunAll.
@@ -84,7 +84,7 @@ COMMANDS                                                       *arf-commands*
     Also works with an explicit pid. Interruption is cooperative: native code
     may delay it. New runs remain blocked until evaluation completes.
     Rejected or failed interrupts may be retried; remaining expressions stay
-    cancelled. Requires arf 0.7.0-beta.2 or later.
+    cancelled. Requires arf 0.7.0 or later.
 
 :ArfStop                                                        *:ArfStop*
     Terminate the automatically started session, even during execution, and

@@ -22,7 +22,7 @@
 
 ## 必要なもの
 
-- **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.0-beta.2 以降**。
+- **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.0 以降**。
 - 式の自動選択・バッファ全体の実行には **R の Tree-sitter パーサー**。
 - インライン画像には `image` を有効にした **[Snacks](https://github.com/folke/snacks.nvim)**、**ImageMagick**、**Ghostty** や **Kitty** などの対応ターミナル。
 
