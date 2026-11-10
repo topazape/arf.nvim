@@ -1,65 +1,268 @@
 *arf.txt*  R code and results in Neovim
 
-See the README for installation and usage.
+See the README for installation and a first run. This reference covers
+commands, configuration, and behavior while using the plugin.
 
 CONTENTS                                             *arf* *arf.nvim*
 
+    Requirements            |arf-requirements|
+    Commands                |arf-commands|
+    Keymaps                 |arf-keymaps|
+    Execution               |arf-execution|
+    Object Picker           |arf-objects|
+    Object inspection       |arf-inspect|
     Configuration           |arf-configuration|
     Session                 |arf-session|
     Plots                   |arf-plots|
     Output and floats       |arf-output-settings|
     Signs                   |arf-signs|
-    Renamed settings        |arf-renamed-settings|
     API                     |arf-api|
     Highlights              |arf-highlights|
+    Limitations             |arf-limitations|
+    Troubleshooting         |arf-troubleshooting|
+    Related plugins         |arf-related|
+
+==============================================================================
+REQUIREMENTS                                               *arf-requirements*
+
+- Neovim 0.12 or later, R, and arf 0.7.0 or later.
+  Install arf from https://github.com/eitsupi/arf and put it on PATH, or set
+  executable to its path.
+- An R Tree-sitter parser for automatic expression selection and ArfRunAll.
+  Install r with your parser manager. Visual selections and explicit line
+  ranges work without a parser.
+- Inline plots: snacks.nvim with image enabled, ImageMagick (magick or
+  identify), and a terminal supporting Snacks inline images, such as Ghostty
+  or Kitty.
+- Object Picker: Snacks.picker.
+- Copying plots: osascript on macOS, wl-copy (Wayland) or xclip (X11) on
+  Linux, or PowerShell on Windows.
+
+If you already configure Snacks, add image = { enabled = true } to its
+options. You can omit the dependency if you use neither inline plots nor
+Object Picker.
+
+==============================================================================
+COMMANDS                                                       *arf-commands*
+
+:ArfRun                                                          *:ArfRun*
+    Run the top-level expression at the cursor. In Visual mode, use
+    :ArfRun<CR> to pass complete selected lines. :3,5ArfRun runs an explicit
+    range; :%ArfRun runs the whole buffer as one range with combined output.
+
+:ArfRunAll                                                    *:ArfRunAll*
+    Run every top-level expression in order, with separate output and timing.
+    Stop at the first R error, IPC failure, or interruption. Completed results
+    and existing results not reached remain.
+
+:ArfClear                                                      *:ArfClear*
+    Clear output, images, and signs in the current buffer; keep R objects.
+    This discards a pending result and stops subsequent expressions without
+    interrupting the current R evaluation.
+
+:ArfOutput                                                    *:ArfOutput*
+    Open saved text for the execution range under the cursor without
+    evaluating R again. Use / to search, y to copy, zl / zh to scroll
+    horizontally, and q to close. Rows or columns omitted by R and text
+    exceeding the retention limit are unavailable; change
+    |arf-output-settings| and rerun to include them.
+
+:ArfSummary                                                  *:ArfSummary*
+    Call base::summary() on the object under the cursor and show it in a
+    float. Run the expression creating that object first. See |arf-inspect|.
+
+:ArfObjects                                                  *:ArfObjects*
+    Search and inspect objects in the R session. See |arf-objects|.
+
+:ArfCopyPlot                                                *:ArfCopyPlot*
+    Copy the final image of the most recent saved plot result across all
+    buffers. Cleared or replaced results are not copied.
+
+:ArfInterrupt                                              *:ArfInterrupt*
+    Interrupt the active evaluation and stop subsequent ArfRunAll expressions.
+    Keep the session, variables, and saved results, including partial output.
+    Also works with an explicit pid. Interruption is cooperative: native code
+    may delay it. New runs remain blocked until evaluation completes.
+    Rejected or failed interrupts may be retried; remaining expressions stay
+    cancelled. Requires arf 0.7.0 or later.
+
+:ArfStop                                                        *:ArfStop*
+    Terminate the automatically started session, even during execution, and
+    clear results in all buffers. The next evaluation starts a fresh session.
+    With an explicit pid, warn without changing anything.
+
+KEYMAPS                                                         *arf-keymaps*
+
+The plugin does not register R buffer keymaps automatically. Configure keys in
+your lazy.nvim spec or use vim.keymap.set(). <LocalLeader> follows
+vim.g.maplocalleader and defaults to backslash: \fr in the README example. Set
+it before the plugin loads to use a different prefix:
+
+>lua
+    vim.g.maplocalleader = "," -- ,fr to run
+<
+
+Optional entries for the lazy.nvim keys table:
+
+>lua
+    { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
+    { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
+    { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
+    { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
+<
+
+==============================================================================
+EXECUTION                                                     *arf-execution*
+
+Automatic selection requires a syntactically complete buffer. Inside a
+function or loop, it selects the whole definition or loop. Expressions sharing
+a line are selected by cursor position; blank lines and comments outside
+expressions have nothing to run.
+
+Assignments normally produce no text. For example, run x <- mtcars before
+head(x) or plot(x$mpg, x$wt). For multiple plots, run a model assignment and
+then plot(model):
+
+>r
+    model <- lm(mpg ~ wt, data = mtcars)
+    plot(model)
+<
+
+This displays four diagnostic plots in generation order.
+
+ArfRun and ArfRunAll show per-expression wall-clock time, including IPC and
+result processing, excluding initial session startup.
+
+Results appear below the executed range. Editing retains the previous output
+in a dimmed color and removes execution signs. Rerunning replaces the result;
+deleting its entire source range removes it. Other ranges do not update
+automatically: rerun dependent expressions after changing data or variables.
+Editing, clearing, or unloading the source buffer while evaluation is pending
+discards that result and stops subsequent expressions without interrupting R.
+
+All buffers share one R session. Automatically started sessions use :pwd at
+the first evaluation; later :cd changes do not affect R. External sessions
+retain their working directory. Neovim exits stop only owned sessions.
+Evaluation options are captured at request start; setup() changes apply to the
+next request, including when startup is still pending.
+
+==============================================================================
+OBJECT PICKER                                                   *arf-objects*
+
+Use :ArfObjects or require("arf").objects() to fuzzy search names in the
+session's .GlobalEnv with Snacks.picker. Rows show name, class, and dimensions
+or length when available. Dot-prefixed names are omitted.
+
+- Type a name in insert mode; <CR> runs summary(). <Esc> enters normal mode.
+- In normal mode, p runs print(), r refreshes the list, and q closes it.
+- Search matches names; it does not fetch metadata on each keystroke.
+- The list reflects the session when opened or refreshed.
+- Results appear in a float. ArfOutput separately reopens saved code output.
+
+==============================================================================
+OBJECT INSPECTION                                               *arf-inspect*
+
+inspect(fn, opts) calls an R function on the object under the cursor and shows
+its text output in a float. The function receives that object as its only
+argument. Run the code creating the object first; press q to close.
+
+Use an ASCII R function name or an exported package::function. Install the
+package before using a qualified name; library() is unnecessary. A function
+already defined in the session can be passed by name, e.g. inspect("my_fn").
+
+For a custom keymap, add this entry to your lazy.nvim keys table:
+
+>lua
+    {
+      "<LocalLeader>fp",
+      function()
+        require("arf").inspect("performance::model_performance", {
+          title = "Model performance",
+        })
+      end,
+      ft = "r",
+      desc = "Inspect model performance",
+    },
+<
+
+Names, including dots, are resolved in the global and inherited environments.
+Inspection does not evaluate member/index expressions or whole names with
+spaces/operators: on column in df$column, it looks up an object named column.
+Picker selections instead use the exact selected name in .GlobalEnv.
+
+opts.title is optional and defaults to function(object), e.g. summary(x). For
+explicit R code, it defaults to inspect(object). Errors appear in the float;
+plots are not displayed. Use a trusted anonymous R function to supply extra
+arguments:
+
+>lua
+    require("arf").inspect({
+      r = [[
+        function(x) {
+          stats::confint(x, level = 0.90)
+        }
+      ]],
+    }, { title = "90% confidence interval" })
+<
 
 ==============================================================================
 CONFIGURATION                                             *arf-configuration*
 
 Set only the options you want to change, using opts in your lazy.nvim spec.
-Nested signs options merge individually. Repeated calls to setup() merge the
-supplied options into the current configuration.
+Nested options merge individually. Unknown settings are rejected. Repeated
+calls to setup() merge the supplied options into the current configuration.
 
 >lua
     require("arf").setup({
-      theme = "default",          -- "default", "auto", or "neon"
+      executable = "arf",
+      pid = nil,                -- omitted: auto-start; number: external; false: reset
+      startup_timeout_ms = 10000, -- 10 seconds
+      eval_timeout_ms = 300000, -- 5 minutes per evaluation
 
-      -- arf / R session
-      executable = "arf",         -- Command name or executable path
-      pid = nil,                  -- nil: start a session; number: use an existing session
-      startup_timeout = 10000,    -- Session startup timeout in milliseconds
-      eval_timeout = 300000,      -- IPC response timeout in milliseconds
+      output = {
+        max_bytes = 1048576,      -- retained text per evaluation, including errors
+        tibble = {
+          max_rows = "inherit",     -- "inherit" or a positive integer
+          width = "auto",           -- "inherit", "auto", positive integer, or "all"
+        },
+      },
 
-      -- Image display limits in terminal cells
-      image_max_width = 100,      -- Maximum columns
-      image_max_height = 30,      -- Maximum rows
+      inline = {
+        max_lines = 20,           -- body lines, excluding borders, notices, and images
+        border = "line",          -- "rounded", "single", "double", "line", or "none"
+      },
 
-      -- PNG generated by R
-      plot_width_px = 1200,       -- Width in pixels
-      plot_height_px = 800,       -- Height in pixels
-      plot_dpi = 180,             -- DPI; also affects text and line sizes
+      float_window = {          -- shared by saved output and object inspections
+        width = "60%",            -- "auto", positive integer, or "1%" to "100%"
+        max_height = 30,
+      },
 
-      -- Output display and retention
-      tibble_max_rows = false,    -- Set a positive integer to override tibble row printing
-      tibble_width = "auto",      -- false, "auto", positive integer, or "all"
-      inline_max_lines = 20,      -- Inline body lines, excluding notices and images
-      output_max_bytes = 1048576, -- Retained bytes per run, including errors (1 MiB)
-      -- Shared by ArfOutput and object inspections
-      float_width = "60%",        -- "auto", positive integer, or "1%" to "100%"
-      float_max_height = 30,      -- Maximum rows; shrinks for short output
+      image = {
+        render = {                -- PNG generated by R
+          width_px = 1200,
+          height_px = 800,
+          dpi = 180,
+        },
+        display = {               -- display limits in terminal cells
+          max_width = 100,          -- columns
+          max_height = 30,          -- rows
+        },
+      },
 
-      -- Execution signs
+      theme = "default",        -- "default", "auto", or "neon"
+
       signs = {
-        enabled = true,           -- Set false to hide all execution signs
-        priority = 5,             -- Higher values take precedence
-        range = { text = "│", hl = "ArfSignRange" },
+        enabled = true,
+        priority = 5,
+        range = { text = "│" },
         success = { text = "│", hl = "ArfSignSuccess" },
         error = { text = "│", hl = "ArfSignError" },
+        interrupted = { text = "│", hl = "ArfSignInterrupted" },
         running = {
-          text = "…",             -- Initial symbol; also used when animation is disabled
+          text = "…",               -- static symbol when animation is disabled
           hl = "ArfSignRunning",
           frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
-          interval = 80,          -- Frame interval in milliseconds
+          interval_ms = 80,         -- milliseconds
         },
       },
     })
@@ -72,20 +275,22 @@ SESSION                                                         *arf-session*
 - pid: omitted by default for automatic startup. To use an existing session,
   obtain its PID with arf ipc list and supply it as a number. Manage its
   lifecycle and working directory separately. ArfStop does not stop an
-  external session or clear its results.
-- startup_timeout: startup wait time. Failed or timed-out startup is retried
+  external session or clear its results. Pass pid = false to setup() to
+  return to automatic startup; omitting pid preserves the current setting.
+- startup_timeout_ms: startup wait time. Failed or timed-out startup is retried
   on the next evaluation.
-- eval_timeout: IPC response wait time for each evaluation, not for the entire
-  ArfRunAll sequence. A timeout alone does not stop R computation; use ArfStop
+- eval_timeout_ms: IPC response wait time for each evaluation, not for the
+  entire ArfRunAll sequence. A timeout alone does not stop R computation; use ArfStop
   to terminate the owned session. Stop evaluations in an external session
   separately.
 
 PLOTS                                                             *arf-plots*
 
-Plots are stacked in generation order. image_max_width / image_max_height cap
-each image's display size in cells; plot_width_px / plot_height_px / plot_dpi
-set PNG dimensions in pixels and resolution in dpi. The window also constrains
-display size.
+Plots are stacked in generation order. image.display.max_width /
+image.display.max_height cap each image's display size in cells;
+image.render.width_px / image.render.height_px / image.render.dpi set PNG
+dimensions in pixels and resolution in dpi. The window also constrains display
+size.
 
 PNG settings take effect on re-evaluation. Increasing pixels and DPI
 proportionally may improve sharpness while preserving displayed text and line
@@ -98,45 +303,52 @@ lazy.nvim opts:
 
 >lua
     opts = {
-      tibble_max_rows = 100,
-      tibble_width = "auto",
-      inline_max_lines = 20,
+      output = {
+        tibble = { max_rows = 100, width = "auto" },
+      },
+      inline = { max_lines = 20 },
     }
 <
 
 This prints up to 100 tibble rows and shows the first 20 lines inline. Read
 the rest with :ArfOutput.
 
-- inline_max_lines: inline body lines, excluding separators, notices, and
+- inline.max_lines: inline body lines, excluding separators, notices, and
   images.
-- tibble_max_rows: maximum tibble rows to print. The default false preserves
-  R's settings. For individual expressions, use print(df, n = 100) or
+- inline.border: "rounded" encloses results with rounded corners; "single"
+  uses square corners; "double" uses double lines; "line" shows a top
+  separator; "none" hides borders and separators. The default is "line".
+  Enclosed previews clip long lines to fit the narrowest window displaying
+  the buffer in the current tab. :ArfOutput shows the full retained text.
+  Empty results have no border; one blank line follows nonempty results.
+- output.tibble.max_rows: maximum tibble rows to print. The default "inherit"
+  preserves R's settings. For individual expressions, use print(df, n = 100) or
   print(df, n = 100, width = Inf) to include omitted columns too. An explicit
   n takes precedence.
-- output_max_bytes: retained text per evaluation (default 1 MiB), including
+- output.max_bytes: retained text per evaluation (default 1 MiB), including
   stdout, stderr, and errors but excluding images. If a retention-limit notice
   appears, increase it and rerun. This does not limit R's memory usage.
-- tibble_width: false preserves R's settings; "auto" uses the source window's
-  text width at execution start (excluding gutters); a positive integer sets
-  the output width in characters; "all" prints all columns. Finite widths show
-  one tier, omit columns that do not fit, and also set R's width, affecting
-  other printed output. "all" may be stacked in multiple tiers by tibble. An
+- output.tibble.width: "inherit" preserves R's settings; "auto" uses the source
+  window's text width at execution start (excluding gutters); a positive
+  integer sets the output width in characters; "all" prints all columns.
+  Finite widths show one tier, omit columns that do not fit, and also set
+  R's width, affecting other printed output. "all" may be stacked in multiple tiers by tibble. An
   explicit print(..., width = ...) takes precedence. Resizing requires re-
   evaluation.
-- float_width / float_max_height: shared float size for saved output, summary,
-  and other inspections. float_width = "auto" uses the editor width minus
-  borders and margins when opened; a positive integer specifies columns; a
-  string such as "90%" specifies a percentage of the editor width (integer
-  1–100%). Floats fit the screen and shrink vertically for short output.
-  Images appear only inline.
+- float_window.width / float_window.max_height: shared float size for saved
+  output, summary, and other inspections. float_window.width = "auto" uses the
+  editor width minus borders and margins when opened; a positive integer
+  specifies columns; a string such as "90%" specifies a percentage of the
+  editor width (integer 1–100%). Floats fit the screen and shrink vertically
+  for short output. Images appear only inline.
 
-Numeric values, including PNG settings, require positive integers.
-inline_max_lines applies on the next display refresh; float sizes apply when
-reopened. Changes to tibble_max_rows, tibble_width, and output_max_bytes
-require re-evaluation.
+Numeric size, timeout, and PID settings require positive integers.
+inline.max_lines and inline.border apply on the next display refresh; float
+sizes apply when reopened. Changes to output.tibble.max_rows,
+output.tibble.width, and output.max_bytes require re-evaluation.
 
-tibble_max_rows and tibble_width also apply to object inspections. The R
-options they set are restored after each evaluation.
+output.tibble.max_rows and output.tibble.width also apply to object
+inspections. The R options they set are restored after each evaluation.
 
 SIGNS                                                             *arf-signs*
 
@@ -151,14 +363,14 @@ SIGNS                                                             *arf-signs*
 - signs.running.frames: animation frames, each 1–2 display cells wide. Two or
   more frames enable animation; an empty list {} or a single frame uses the
   static running.text instead.
-- signs.running.interval: a positive frame interval in milliseconds; defaults
+- signs.running.interval_ms: a positive frame interval in milliseconds; defaults
   to 80.
 
-By default, successful and failed ranges use │ on every line, colored by
-signs.success.hl or signs.error.hl. Running ranges use signs.running.hl
-throughout, with a spinner on the last line. Nerd Font is not required.
-signs.range.hl and ArfSignRange are retained for compatibility but no longer
-control range colors.
+By default, successful, failed, and interrupted ranges use │ on every line,
+colored by signs.success.hl, signs.error.hl, or signs.interrupted.hl. Running
+ranges use signs.running.hl throughout, with a spinner on the last line. Nerd
+Font is not required. signs.range specifies only text. All lines use the
+execution status color.
 
 To use distinct symbols on the final line:
 
@@ -176,19 +388,6 @@ The spinner appears on the last line of the running range. Configuration
 changes apply to subsequent runs. If signs are hidden, check :set
 signcolumn=yes.
 
-RENAMED SETTINGS                                       *arf-renamed-settings*
-
-Settings renamed in v0.5.0 raise an error naming their replacement:
-
-- output_max_lines → inline_max_lines
-- output_width / inspect_width → float_width
-- output_max_height / inspect_max_height → float_max_height
-- image_width / image_height → image_max_width / image_max_height
-- plot_width / plot_height / plot_res → plot_width_px / plot_height_px /
-  plot_dpi
-- timeout → eval_timeout
-- tibble_width = math.huge → tibble_width = "all"
-
 ==============================================================================
 API                                                                 *arf-api*
 
@@ -205,13 +404,13 @@ Commands and custom keymaps can use the same Lua API:
     arf.clear(bufnr)      -- Clear a buffer; 0 means the current buffer
     arf.inspect(fn, opts) -- Call an R function on the object under the cursor; opts.title is optional
     arf.objects()         -- Pick a global R object to inspect
-    arf.summary()         -- Shorthand for arf.inspect("base::summary")
     arf.output()          -- Show saved output at the cursor without evaluating R again
     arf.copy_plot()       -- Copy the most recent plot image to the clipboard
+    arf.interrupt()       -- Interrupt evaluation and stop subsequent expressions; keep R objects
     arf.stop()            -- Terminate the owned session and clear results in all buffers
 <
 
-R evaluation through run, run_all, inspect, and summary is asynchronous. clear
+R evaluation through run, run_all, inspect, and objects is asynchronous. clear
 does not interrupt running R code; use stop to terminate the owned session.
 
 ==============================================================================
@@ -252,7 +451,7 @@ ArfOutputStale
     foreground blended with 50% background; Comment fallback.
 
 ArfSeparator
-    full-width rule before inline output. Auto theme default: Normal
+    inline result borders and separators. Auto theme default: Normal
     foreground blended with 75% background.
 
 ArfMessage
@@ -284,6 +483,9 @@ ArfFloatStderr
 ArfFloatError
     errors inside floats. Auto theme default: ArfError.
 
+ArfFloatInterrupted
+    interrupted evaluations inside floats. Auto theme default: ArfInterrupted.
+
 ArfFloatWarning
     notices inside floats. Auto theme default: ArfWarning.
 
@@ -302,18 +504,23 @@ ArfSignRunning
 ArfError
     execution errors. Auto theme default: DiagnosticError.
 
+ArfInterrupted
+    interrupted evaluations, without the R error prefix. Auto theme default:
+    DiagnosticWarn. Default theme uses muted amber; neon uses vivid yellow,
+    matching each theme's warning color for dark and light backgrounds.
+
 ArfWarning
     notices, including image display warnings. Auto theme default:
     DiagnosticWarn.
-
-ArfSignRange
-    legacy range highlight (unused). Auto theme default: ArfSeparator.
 
 ArfSignSuccess
     success sign. Auto theme default: DiagnosticOk.
 
 ArfSignError
     error sign. Auto theme default: DiagnosticError.
+
+ArfSignInterrupted
+    interrupted evaluation sign. Auto theme default: DiagnosticWarn.
 
 In the "auto" theme, colors come from standard colorscheme groups. When RGB
 foreground or background is unavailable, output links to its source group and
@@ -332,5 +539,71 @@ clears highlights:
 <
 
 Image placeholder colors are managed by Snacks.
+
+==============================================================================
+LIMITATIONS                                                 *arf-limitations*
+
+- One evaluation at a time. Additional runs and inspections are rejected
+  throughout ArfRunAll. Output appears after each evaluation, without
+  streaming or resuming interrupted computations.
+- Results are tracked by line range. Running another expression on the same
+  line replaces its previous result.
+- Results are not saved across sessions. Text retention limits apply per
+  evaluation; there is no total limit across results, on image count, or on
+  total image size.
+- stdout precedes stderr, losing their interleaving.
+- arf.nvim focuses on .R scripts; completion and a language server are not
+  included. Jupyter and IRkernel are not required.
+
+==============================================================================
+TROUBLESHOOTING                                           *arf-troubleshooting*
+
+No image appears ~
+    Run :checkhealth snacks. :echo executable('magick') or
+    :echo executable('identify') should return 1. Check |arf-requirements|.
+
+An expression will not run ~
+    Check the R Tree-sitter parser and buffer syntax. Visual selections and
+    :3,5ArfRun work without a parser.
+
+Keymaps do not work ~
+    Check your keys configuration, that the buffer filetype is r, and that
+    maplocalleader was set before registering keymaps. See |arf-keymaps|.
+
+Output is missing ~
+    Open :ArfOutput within the executed range. For tibble omissions or
+    discarded text, change |arf-output-settings| and rerun.
+
+Object not found ~
+    Run the code creating the variable first. A session started after
+    :ArfStop has none of the previous session's objects.
+
+A relative file path fails ~
+    Run getwd() in R. :cd does not change an existing R session's directory.
+    Use setwd() in R, or :ArfStop, change Neovim's directory, and rerun.
+
+A computation will not finish ~
+    Use :ArfInterrupt to request a cooperative interruption. :ArfStop
+    terminates the owned session and loses its R objects. Manage an external
+    session selected with pid from that session instead if interruption
+    cannot complete.
+
+==============================================================================
+RELATED PLUGINS                                                *arf-related*
+
+arf.nvim focuses on .R scripts with text and plots attached to source ranges.
+Other workflows may be better served by:
+
+- R.nvim: a broader R environment with terminal/tmux communication,
+  completion, object browsing, help, and Quarto/R Markdown support.
+  https://github.com/R-nvim/R.nvim
+- iron.nvim: configurable REPLs across languages.
+  https://github.com/Vigemus/iron.nvim
+- molten.nvim: Jupyter kernels (IRkernel for R), inline output and images,
+  cell/output saving, and notebook output import/export.
+  https://github.com/benlubas/molten-nvim
+- quarto-nvim: Quarto authoring, preview, embedded languages, and execution
+  delegated to runners such as Molten or iron.
+  https://github.com/quarto-dev/quarto-nvim
 
 vim:tw=78:ts=8:noet:ft=help:norl:

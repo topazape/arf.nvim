@@ -1,10 +1,16 @@
 -- Run with: nvim --headless -u NONE -l tests/plots.lua
 vim.opt.rtp:prepend(vim.fn.getcwd())
-require("arf").setup({})
+require("arf").setup({ inline = { border = "rounded" } })
 local buf = vim.api.nvim_get_current_buf()
 vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "plot(model)", "next" })
-local created, closed, callbacks = {}, {}, {}
+local created, closed, callbacks, positions = {}, {}, {}, {}
 package.loaded["arf.snacks"] = {
+	update = function(image, _, row)
+		positions[image.path] = row
+	end,
+	close = function(image)
+		image:close()
+	end,
 	available = function()
 		return true
 	end,
@@ -13,7 +19,7 @@ package.loaded["arf.snacks"] = {
 		callbacks[path] = on_grid
 		on_grid({ { { path, "Normal" } } })
 		return {
-			opts = {},
+			path = path,
 			show = function() end,
 			update = function() end,
 			close = function()
@@ -42,14 +48,14 @@ local function lines()
 end
 flush()
 assert(#created == 4)
-assert(lines()[3][1][1] == "one.png" and lines()[6][1][1] == "four.png", "stack in generation order")
+assert(lines()[3][2][1] == "one.png" and lines()[6][2][1] == "four.png", "stack in generation order")
 callbacks["two.png"]({ { { "updated", "Normal" } }, { { "second row", "Normal" } } })
 flush()
-assert(lines()[4][1][1] == "updated" and lines()[7][1][1] == "four.png", "async resize keeps order")
+assert(lines()[4][2][1] == "updated" and lines()[7][2][1] == "four.png", "async resize keeps order")
 vim.api.nvim_buf_set_lines(buf, 0, 0, false, { "before" })
 flush()
-for _, plot in ipairs(entry.plots) do
-	assert(plot.image.opts.pos[1] == 2, "all images move with the expression")
+for _, row in pairs(positions) do
+	assert(row == 1, "all images move with the expression")
 end
 assert(#created == 4, "refresh reuses placements")
 results.put(buf, 1, 1, { text = "replacement", paths = {}, cleanup = function() end })

@@ -38,7 +38,7 @@ vim.defer_fn = function(callback)
 	return timer
 end
 local session = require("arf.session")
-local config = { executable = "arf-test", startup_timeout = 20 }
+local config = { executable = "arf-test", startup_timeout_ms = 20 }
 local function receive(pid, err)
 	replies[#replies + 1] = { pid = pid, err = err }
 end

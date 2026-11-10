@@ -14,19 +14,19 @@ function M.available()
 end
 
 function M.new(buf, row, path, on_grid)
-	local config = require("arf").config
+	local config = require("arf.config").get()
 	return require("snacks").image.placement.new(buf, path, {
 		pos = { row + 1, 0 },
 		range = { row + 1, 0, row + 1, 0 },
 		inline = true,
 		conceal = false,
 		auto_resize = true,
-		max_width = config.image_max_width,
-		max_height = config.image_max_height,
+		max_width = config.image.display.max_width,
+		max_height = config.image.display.max_height,
 		on_update = function(placement)
 			-- Snacks builds the Kitty placeholder grid. Move that grid into our
 			-- single output extmark so text and image have an unambiguous order.
-			-- eids/ns are internal to Snacks; covered by the real-placement test.
+			-- eids/ns are internal to Snacks; keep their use confined to this adapter.
 			local lines, inline = {}, nil
 			for _, id in ipairs(placement.eids) do
 				local mark = vim.api.nvim_buf_get_extmark_by_id(buf, placement.ns, id, { details = true })
@@ -43,6 +43,23 @@ function M.new(buf, row, path, on_grid)
 			on_grid(lines)
 		end,
 	})
+end
+
+-- Placement internals are confined to this adapter.
+function M.update(image, buf, row)
+	image.opts.pos = { row + 1, 0 }
+	image.opts.range = { row + 1, 0, row + 1, 0 }
+	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+		if vim.api.nvim_win_get_tabpage(win) == vim.api.nvim_get_current_tabpage() then
+			image:show()
+			break
+		end
+	end
+	image:update()
+end
+
+function M.close(image)
+	image:close()
 end
 
 return M

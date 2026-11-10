@@ -8,23 +8,26 @@ local function marks()
 end
 assert(arf.config.signs.success.text == "│" and arf.config.signs.error.text == "│")
 arf.setup({ signs = { enabled = false } })
-assert(#signs.place(buf, 0, 2, false, true) == 0 and #marks() == 0)
+assert(#signs.place(buf, 0, 2, "running") == 0 and #marks() == 0)
 arf.setup({
 	signs = {
 		enabled = true,
 		priority = 17,
-		range = { text = "|", hl = "Comment" },
+		range = { text = "|" },
 		success = { text = "+", hl = "String" },
 		error = { text = "!", hl = "ErrorMsg" },
-		running = { text = "?", hl = "WarningMsg", frames = {}, interval = 5 },
+		interrupted = { text = "~", hl = "DiagnosticWarn" },
+		running = { text = "?", hl = "WarningMsg", frames = {}, interval_ms = 5 },
 	},
 })
 for _, case in ipairs({
 	{ false, false, "+", "String" },
 	{ true, false, "!", "ErrorMsg" },
+	{ true, false, "~", "DiagnosticWarn", true },
 	{ false, true, "?", "WarningMsg" },
 }) do
-	local ids = signs.place(buf, 0, 2, case[1], case[2])
+	local ids =
+		signs.place(buf, 0, 2, case[2] and "running" or case[5] and "interrupted" or case[1] and "error" or "ok")
 	local placed = marks()
 	assert(#placed == 3 and placed[1][4].sign_text:match("^|"))
 	for _, mark in ipairs(placed) do
@@ -35,7 +38,7 @@ for _, case in ipairs({
 	signs.clear(buf, ids)
 end
 arf.setup({ signs = { range = { text = "" }, running = { frames = { "a", "b" } } } })
-local ids = signs.place(buf, 0, 2, false, true)
+local ids = signs.place(buf, 0, 2, "running")
 assert(#ids == 1 and ids.timer)
 assert(
 	vim.wait(1000, function()
@@ -47,6 +50,6 @@ local timer = ids.timer
 signs.clear(buf, ids)
 assert(timer:is_closing() and #marks() == 0)
 arf.setup({ signs = { running = { text = "" } } })
-ids = signs.place(buf, 0, 2, false, true)
+ids = signs.place(buf, 0, 2, "running")
 assert(#ids == 0 and ids.timer == nil, "empty running text disables animation")
 print("sign customization tests passed")

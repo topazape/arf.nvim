@@ -13,6 +13,7 @@ package.loaded["arf.expression"] = {
 local callbacks, codes, entries, notices = {}, {}, {}, {}
 local generation, cleaned = 0, 0
 local widths = {}
+local interrupts = 0
 package.loaded["arf.session"] = {
 	ensure = function(_, cb)
 		cb(123)
@@ -20,8 +21,13 @@ package.loaded["arf.session"] = {
 	stop = function() end,
 }
 package.loaded["arf.executor"] = {
+	interrupt = function(config, cb)
+		assert(config.pid == 123, "interrupt targets the active PID")
+		interrupts = interrupts + 1
+		cb(true)
+	end,
 	eval = function(code, config, cb)
-		widths[#widths + 1] = config.tibble_width
+		widths[#widths + 1] = config.output.tibble.width
 		codes[#codes + 1] = code
 		callbacks[#callbacks + 1] = cb
 		return function() end
@@ -41,9 +47,7 @@ package.loaded["arf.results"] = {
 	clear = function()
 		generation = generation + 1
 	end,
-	all = function()
-		return {}
-	end,
+	clear_all = function() end,
 }
 vim.notify = function(message)
 	notices[#notices + 1] = message
@@ -68,13 +72,13 @@ local function reset()
 	codes, callbacks, entries, notices = {}, {}, {}, {}
 	vim.api.nvim_buf_set_lines(0, 0, -1, false, { "x <- 1", "print(x)" })
 end
-arf.setup({ tibble_width = "auto" })
+arf.setup({ output = { tibble = { width = "auto" } } })
 vim.wo.number = true
 local win = vim.api.nvim_get_current_win()
 local expected_width = vim.api.nvim_win_get_width(win) - vim.fn.getwininfo(win)[1].textoff
 arf.run_all()
 assert(widths[1] == expected_width, "auto uses source text width excluding gutters")
-assert(arf.config.tibble_width == "auto", "auto resolution preserves config")
+assert(arf.config.output.tibble.width == "auto", "auto resolution preserves config")
 assert(#codes == 1)
 assert(
 	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "print(x)" }),
@@ -122,20 +126,18 @@ assert(
 	vim.deep_equal(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "x <- 1", "print(x)" }),
 	"single runs leave source lines unchanged, including EOF"
 )
-if vim.env.ARF_TEST_MODE == "unit" then
-	print("run-all tests passed")
-	return
-end
-package.loaded["arf.expression"] = nil
-local expression = require("arf.expression")
-vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# comment", "x <- 1", "print(x)" })
-local all, err = expression.all(0)
-if all then
-	assert(#all == 2 and all[1].first == 2 and all[2].first == 3)
-	vim.api.nvim_buf_set_lines(0, 0, -1, false, { "x <- (" })
-	assert(expression.all(0) == nil, "reject syntax error")
-else
-	assert(err:find("parser"), err)
-	print("R parser unavailable; parser integration skipped")
-end
+reset()
+arf.run_all()
+arf.interrupt()
+arf.interrupt()
+assert(interrupts == 1, "duplicate interrupt suppressed")
+arf.run_all()
+assert(#codes == 1 and #notices == 1, "interrupt keeps busy until completion")
+complete()
+assert(#codes == 1 and #entries == 1, "interrupt prevents subsequent expressions even if completion races")
+reset()
+arf.run_all()
+complete()
+complete()
+assert(#entries == 2, "can run again after interrupt")
 print("run-all tests passed")

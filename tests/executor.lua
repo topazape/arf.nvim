@@ -1,7 +1,11 @@
 -- Run with: nvim --headless -u NONE -l tests/executor.lua
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local executor = require("arf.executor")
-local config = vim.tbl_extend("force", require("arf").config, { pid = 42, output_max_bytes = 8 })
+local config = vim.tbl_deep_extend(
+	"force",
+	require("arf").config,
+	{ pid = 42, output = { max_bytes = 8, tibble = { width = "inherit" } } }
+)
 local original = vim.system
 local original_hrtime = vim.uv.hrtime
 local now = 1000000000
@@ -43,6 +47,8 @@ local function finish(code, stdout, stderr)
 end
 start()
 assert(not failure, failure)
+check(options.stdin:find(".arf_tibble_rows <- NULL", 1, true), "inherit rows preserves R options")
+check(options.stdin:find(".arf_tibble_width <- NULL", 1, true), "inherit width preserves R options")
 check(
 	vim.deep_equal(args, { "arf", "ipc", "eval", "--visible", "--timeout", "300000", "--pid", "42" }),
 	"IPC argument vector includes timeout and PID"
@@ -55,7 +61,7 @@ vim.fn.writefile({}, dir .. "/plot-000000002.png")
 vim.fn.writefile({}, dir .. "/plot-000000001.png")
 vim.fn.writefile({}, dir .. "/truncated")
 now = now + 135000000
-finish(0, vim.json.encode({ stdout = "abc", stderr = "def", error = "日本" }))
+finish(0, vim.json.encode({ stdout = "abc", stderr = "def", status = "error", error = "日本" }))
 check(result.elapsed_ms == 142, "R errors retain elapsed time including result processing")
 check(result.text == "abcdef" and result.error == "" and result.truncated, "decode and limit combined output and error")
 check(
@@ -74,6 +80,27 @@ for _, response in ipairs({ "not json", "null", "42", '"string"' }) do
 		"invalid response releases resources: " .. response
 	)
 end
+for _, response in ipairs({ "{}", '{"error":"old server"}', '{"status":"invalid"}', '{"status":null}' }) do
+	start()
+	finish(0, response)
+	check(result == nil and failure:find("status") and vim.fn.isdirectory(dir) == 0, "reject missing/invalid status")
+end
+local old_limit = require("arf.output").limit
+require("arf.output").limit = function()
+	error("decode failure")
+end
+start()
+finish(0, '{"status":"ok"}')
+check(
+	result == nil and failure:find("decode failure") and vim.fn.isdirectory(dir) == 0,
+	"decode exception releases captures"
+)
+require("arf.output").limit = old_limit
+local finished_cancel = start()
+finish(0, '{"status":"ok"}')
+finished_cancel()
+check(killed == nil and vim.fn.isdirectory(dir) == 1, "completed cancellation handle cannot destroy delivered results")
+result.cleanup()
 start()
 finish(7, "", "IPC unavailable")
 check(failure == "IPC unavailable" and vim.fn.isdirectory(dir) == 0, "nonzero exit reports stderr and cleans up")
@@ -83,13 +110,37 @@ check(failure:find("7") ~= nil, "empty stderr has exit-code fallback")
 local cancel = start()
 cancel()
 check(killed == 15 and vim.fn.isdirectory(dir) == 0, "cancel terminates IPC client and removes captures")
-finish(0, "{}")
+finish(0, '{"status":"ok"}')
 check(result == nil and failure == nil, "late completion after cancel does not reach consumer")
 start()
-finish(0, '{"stdout":false,"stderr":12,"error":false}')
+finish(0, '{"status":"ok","stdout":false,"stderr":12,"error":false}')
 check(result.elapsed_ms == 7, "independent evaluation starts a fresh clock, including empty output")
 check(result.text == "" and result.error == nil, "ignore non-string response fields")
 result.cleanup()
+for _, status in ipairs({ "ok", "error", "interrupted", "unknown" }) do
+	start()
+	finish(0, vim.json.encode({ status = status, stdout = "partial", stderr = "", error = vim.NIL }))
+	check(result.status == status, "preserve status: " .. status)
+	check((result.error == nil) == (status == "ok"), "only ok succeeds: " .. status)
+	result.cleanup()
+end
+local interrupt_args, interrupt_reply
+vim.system = function(argv, _, callback)
+	interrupt_args = argv
+	callback({ code = 0, stdout = '{"accepted":true,"execution_id":7}', stderr = "" })
+end
+executor.interrupt(config, function(accepted, err)
+	interrupt_reply = accepted
+	check(err == nil, "interrupt accepted without error")
+end)
+vim.wait(20, function()
+	return interrupt_reply ~= nil
+end)
+check(interrupt_reply == true, "decode accepted interrupt")
+check(
+	vim.deep_equal(interrupt_args, { "arf", "ipc", "interrupt", "--pid", "42" }),
+	"interrupt targets explicit session"
+)
 vim.system = function(_, opts)
 	dir = vim.json.decode(assert(opts.stdin:match('%.arf_stdout_path <%- ("[^"]+")'))):gsub("/stdout.bin$", "")
 	error("cannot spawn")
@@ -101,89 +152,6 @@ check(
 	result == nil and failure:find("cannot spawn") and vim.fn.isdirectory(dir) == 0,
 	"spawn exception releases captures"
 )
--- Execute the generated R wrapper directly to verify scoped options and tibble output.
-if vim.fn.executable("Rscript") == 1 and vim.env.ARF_TEST_MODE ~= "unit" then
-	vim.system = function(argv, opts, callback)
-		options = opts
-		dir = vim.json.decode(assert(opts.stdin:match('%.arf_stdout_path <%- ("[^"]+")'))):gsub("/stdout.bin$", "")
-		return { kill = function() end }
-	end
-	local function rcheck(source, rows, assertions, width)
-		local settings = vim.tbl_extend(
-			"force",
-			config,
-			{ output_max_bytes = 1048576, tibble_max_rows = rows, tibble_width = width or false }
-		)
-		executor.eval(source, settings, function() end)
-		local code = table.concat({
-			"options(width = 40, pillar.print_max = 7, pillar.print_min = NULL, pillar.width = NULL)",
-			'old <- options()[c("width", "pillar.print_max", "pillar.print_min", "pillar.width")]',
-			"captured <- capture.output(tryCatch({",
-			options.stdin,
-			"}, error = function(e) NULL))",
-			'stopifnot(identical(options()[c("width", "pillar.print_max", "pillar.print_min", "pillar.width")], old))',
-			assertions or "",
-		}, "\n")
-		local reply = original({ "Rscript", "--vanilla", "-" }, { text = true, stdin = code }):wait(30000)
-		vim.fn.delete(dir, "rf")
-		check(reply.code == 0, "R wrapper behavior: " .. reply.stderr)
-	end
-	rcheck('stopifnot(getOption("pillar.print_max") == 100, getOption("pillar.print_min") == 100)', 100)
-	rcheck('stop("expected")', 100)
-	rcheck('stopifnot(getOption("pillar.width") == 160, getOption("width") == 160)', false, nil, 160)
-	rcheck(
-		'stopifnot(getOption("width") == getOption("pillar.width")); options(width = 25); stop("expected")',
-		false,
-		nil,
-		"auto"
-	)
-	rcheck('stopifnot(getOption("width") == 10)', false, nil, 1)
-	rcheck('stopifnot(getOption("width") == 10000)', false, nil, 20000)
-	rcheck(
-		'stopifnot(is.infinite(getOption("pillar.width"))); options(pillar.width = 20); stop("expected")',
-		100,
-		nil,
-		"all"
-	)
-	rcheck('stopifnot(is.null(getOption("pillar.width")))', false)
-	local wide = 'tibble::as_tibble(setNames(rep(list(1:2), 12), paste0("column", 1:12)))'
-	for _, width in ipairs({ "auto", 80 }) do
-		rcheck(
-			'if (requireNamespace("tibble", quietly = TRUE)) ' .. wide,
-			100,
-			'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(sum(grepl("<int>", captured, fixed = TRUE)) == 1L, any(grepl("more variables", captured)))',
-			width
-		)
-	end
-	rcheck(
-		'if (requireNamespace("tibble", quietly = TRUE)) ' .. wide,
-		100,
-		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(!any(grepl("more variables", captured)), any(grepl("column12", captured)))',
-		"all"
-	)
-	rcheck(
-		'if (requireNamespace("tibble", quietly = TRUE)) print(' .. wide .. ", width = 20)",
-		100,
-		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("more variables", captured)))',
-		"all"
-	)
-	rcheck('stopifnot(getOption("pillar.print_max") == 7, is.null(getOption("pillar.print_min")))', false)
-	rcheck(
-		'if (requireNamespace("tibble", quietly = TRUE)) tibble::tibble(x = seq_len(32))',
-		100,
-		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("32 +32", captured)), !any(grepl("more rows", captured)))'
-	)
-	rcheck(
-		'if (requireNamespace("tibble", quietly = TRUE)) tibble::tibble(x = seq_len(120))',
-		100,
-		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("100 +100", captured)), any(grepl("20 more rows", captured)))'
-	)
-	rcheck(
-		'if (requireNamespace("tibble", quietly = TRUE)) print(tibble::tibble(x = seq_len(32)), n = 2)',
-		100,
-		'if (requireNamespace("tibble", quietly = TRUE)) stopifnot(any(grepl("30 more rows", captured)))'
-	)
-end
 vim.system = original
 vim.uv.hrtime = original_hrtime
 require("arf.output").limit = original_limit

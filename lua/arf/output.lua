@@ -102,8 +102,9 @@ local function content(result)
 	local chunks = vim.list_extend({}, result.chunks or { { text = result.text, highlight = "ArfOutput" } })
 	local text = result.text
 	if result.error then
-		local error = (text ~= "" and "\n" or "") .. "R error: " .. result.error
-		chunks[#chunks + 1] = { text = error, highlight = "ArfError" }
+		local interrupted = result.status == "interrupted"
+		local error = (text ~= "" and "\n" or "") .. (interrupted and "" or "R error: ") .. result.error
+		chunks[#chunks + 1] = { text = error, highlight = interrupted and "ArfInterrupted" or "ArfError" }
 		text = text .. error
 	end
 	return text, chunks
@@ -170,8 +171,8 @@ function M.full_lines(result)
 	return lines
 end
 
-function M.preview(result)
-	local lines, total = M.lines(result, require("arf").config.inline_max_lines)
+function M.preview(result, max_lines)
+	local lines, total = M.lines(result, max_lines)
 	if total > #lines then
 		lines[#lines + 1] = { { "… " .. (total - #lines) .. " more lines (view with :ArfOutput)", "ArfWarning" } }
 	end

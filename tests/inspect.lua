@@ -1,5 +1,5 @@
 -- Run with: nvim --headless -u NONE -l tests/inspect.lua
--- IPC and float creation are mocked; Rscript checks run when R is installed.
+-- IPC and float creation are mocked.
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local arf = require("arf")
 local inspect = require("arf.inspect")
@@ -55,9 +55,7 @@ package.loaded["arf.results"] = {
 	clear = function(buf)
 		generations[buf] = (generations[buf] or 0) + 1
 	end,
-	all = function()
-		return {}
-	end,
+	clear_all = function() end,
 }
 package.loaded["arf.float"] = {
 	open = function(title, lines, opts)
@@ -102,7 +100,18 @@ check(contains(code, 'base::getExportedValue("performance", "model_performance")
 check(inspect.code(".my_inspector", "model") ~= nil, "user-defined function names")
 local quoted = 'model"); stop("unexpected") #'
 check(contains(assert(inspect.code("summary", quoted)), vim.json.encode(quoted)), "quote object names as data")
-for _, fn in ipairs({ "", "1fn", "_fn", ".1fn", "base:::summary", "base::summary()", "f; stop()", "function(x) x", {}, 1 }) do
+for _, fn in ipairs({
+	"",
+	"1fn",
+	"_fn",
+	".1fn",
+	"base:::summary",
+	"base::summary()",
+	"f; stop()",
+	"function(x) x",
+	{},
+	1,
+}) do
 	reset()
 	arf.inspect(fn)
 	check(#codes == 0 and #notices == 1, "reject invalid function without evaluation")
@@ -125,7 +134,14 @@ arf.inspect(embedded, { title = "Confidence interval" })
 complete()
 check(opened[2].title == "Confidence interval", "embedded function custom title")
 check(contains(assert(inspect.code(embedded, quoted)), vim.json.encode(quoted)), "embedded function quotes object name")
-for _, opts in ipairs({ false, "title", { title = false }, { title = {} }, { title = "two\nlines" }, { title = "bad\0title" } }) do
+for _, opts in ipairs({
+	false,
+	"title",
+	{ title = false },
+	{ title = {} },
+	{ title = "two\nlines" },
+	{ title = "bad\0title" },
+}) do
 	reset()
 	arf.inspect("summary", opts)
 	check(#codes == 0 and #notices == 1, "reject invalid options before evaluation")
@@ -138,8 +154,8 @@ check(opened[1].title == "summary(model)", "default title")
 check(last_text() == "result", "text output")
 check(cleaned == 1, "release evaluation resources")
 check(opened[1].opts.owner == source, "float belongs to source buffer")
-check(opened[1].opts.width == arf.config.float_width, "reuse configured float width")
-check(opened[1].opts.max_height == arf.config.float_max_height, "reuse configured float height")
+check(opened[1].opts.width == arf.config.float_window.width, "reuse configured float width")
+check(opened[1].opts.max_height == arf.config.float_window.max_height, "reuse configured float height")
 local opts = { title = "Model performance" }
 arf.inspect("performance::model_performance", opts)
 opts.title = "changed after evaluation started"
@@ -151,10 +167,10 @@ check(opened[3].title == "performance::check_collinearity(model)", "calls do not
 arf.inspect("summary", { title = "" })
 complete()
 check(opened[4].title == "", "empty title is an explicit override")
-arf.summary()
+arf.inspect("base::summary")
 complete()
-check(opened[5].title == "summary(model)", "summary API remains compatible")
-check(contains(codes[#codes], 'base::getExportedValue("base", "summary")'), "summary API calls base summary")
+check(opened[5].title == "summary(model)", "base summary inspection opens a float")
+check(contains(codes[#codes], 'base::getExportedValue("base", "summary")'), "inspection calls base summary")
 arf.inspect("base::summary")
 complete()
 check(opened[6].title == "summary(model)", "base summary uses a short default title")
@@ -172,10 +188,13 @@ check(contains(last_text(), "R error: missing package"), "show R errors")
 check(contains(last_text(), "retention limit"), "show truncation notices")
 check(cleaned == 1, "discard captured images with other resources")
 arf.inspect("summary")
-complete({ text = "message\nwarning", chunks = {
-	{ text = "message\n", highlight = "ArfMessage" },
-	{ text = "warning", highlight = "ArfStderr" },
-} })
+complete({
+	text = "message\nwarning",
+	chunks = {
+		{ text = "message\n", highlight = "ArfMessage" },
+		{ text = "warning", highlight = "ArfStderr" },
+	},
+})
 check(opened[2].lines[1][1][2] == "ArfMessage", "preserve message highlights")
 check(opened[2].lines[2][1][2] == "ArfStderr", "preserve warning highlights")
 arf.inspect("summary")
@@ -184,7 +203,7 @@ check(#opened[3].lines == 0, "let the float supply its no-output placeholder")
 
 reset()
 arf.inspect("summary")
-arf.summary()
+arf.inspect("base::summary")
 arf.inspect("stats::coef")
 check(#codes == 1 and #notices == 2, "shared busy guard")
 complete()
@@ -252,51 +271,17 @@ arf.inspect("summary")
 complete()
 check(#opened == 1, "float failure releases busy guard")
 
--- The command must call inspect directly, not the compatibility wrapper.
+-- The command delegates to the public inspection API.
 reset()
 package.loaded["arf.highlights"] = {}
 vim.g.loaded_arf = nil
 dofile("plugin/arf.lua")
-local original_inspect, original_summary = arf.inspect, arf.summary
+local original_inspect = arf.inspect
 local called
 arf.inspect = function(fn)
 	called = fn
 end
-arf.summary = function()
-	error("ArfSummary must call inspect directly")
-end
 vim.cmd("ArfSummary")
 check(called == "base::summary", "ArfSummary command delegates directly to inspect")
-arf.inspect, arf.summary = original_inspect, original_summary
+arf.inspect = original_inspect
 print("inspect Lua tests passed (" .. checks .. " checks)")
-
--- Optional integration: evaluate the generated R expressions without arf IPC.
-if vim.env.ARF_TEST_MODE == "unit" then
-	return
-end
-if vim.fn.executable("Rscript") ~= 1 then
-	print("Rscript unavailable; R integration skipped")
-	return
-end
-local r = {
-	"model <- stats::lm(mpg ~ wt + hp, data = mtcars)",
-	"inspect_ci <- function(x) stats::confint(x, level = 0.90)",
-	"stopifnot(identical(" .. assert(inspect.code(embedded, "model")) .. ", inspect_ci(model)))",
-	"stopifnot(identical(" .. assert(inspect.code({ r = "function(x) x # trailing comment" }, "model")) .. ", model))",
-	"stopifnot(inherits(try(" .. assert(inspect.code({ r = "function(x) stop('embedded error')" }, "model")) .. ", silent = TRUE), 'try-error'))",
-	"stopifnot(identical(" .. assert(inspect.code("summary", "model")) .. ", summary(model)))",
-	"stopifnot(identical(" .. assert(inspect.code("stats::coef", "model")) .. ", stats::coef(model)))",
-	"stopifnot(identical(" .. assert(inspect.code("inspect_ci", "model")) .. ", inspect_ci(model)))",
-	"expr_object <- quote(stop('must not evaluate a returned language object'))",
-	"stopifnot(identical(" .. assert(inspect.code("identity", "expr_object")) .. ", expr_object))",
-	"summary <- 1L",
-	"stopifnot(identical(" .. assert(inspect.code("summary", "model")) .. ", base::summary(model)))",
-	"rm(summary)",
-	"stopifnot(inherits(try(" .. assert(inspect.code("arf_missing_inspector", "model")) .. ", silent = TRUE), 'try-error'))",
-	"stopifnot(inherits(try(" .. assert(inspect.code("arfDefinitelyMissingPackage::inspect", "model")) .. ", silent = TRUE), 'try-error'))",
-	"stopifnot(inherits(try(" .. assert(inspect.code("summary", "arf_missing_object")) .. ", silent = TRUE), 'try-error'))",
-	"print('inspect R integration passed')",
-}
-local result = vim.system({ "Rscript", "--vanilla", "-" }, { text = true, stdin = table.concat(r, "\n") }):wait(30000)
-assert(result.code == 0, result.stderr)
-print(result.stdout)

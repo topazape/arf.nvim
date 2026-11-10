@@ -83,11 +83,7 @@ function M.ensure(config, callback)
 				current = nil
 			end
 			if not session.done then
-				finish(
-					session,
-					nil,
-					"Failed to start arf (exit " .. result.code .. "): " .. session.stderr
-				)
+				finish(session, nil, "Failed to start arf (exit " .. result.code .. "): " .. session.stderr)
 			end
 		end)
 	)
@@ -97,7 +93,7 @@ function M.ensure(config, callback)
 	session.process = process
 	session.timer = vim.defer_fn(function()
 		fail("Timed out starting arf")
-	end, config.startup_timeout)
+	end, config.startup_timeout_ms)
 end
 
 function M.stop()

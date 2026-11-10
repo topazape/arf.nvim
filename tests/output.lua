@@ -20,31 +20,25 @@ for budget = 0, #text + 1 do
 	eq(result.text, expected, "UTF-8 prefix at budget " .. budget)
 	eq(result.truncated == true, budget < #text, "truncation at budget " .. budget)
 end
-local result = output.limit(
-	{
-		text = "abcdef",
-		chunks = {
-			{ text = "abc", highlight = "ArfOutput" },
-			{ text = "def", highlight = "ArfStderr" },
-		},
-		error = "日本",
+local result = output.limit({
+	text = "abcdef",
+	chunks = {
+		{ text = "abc", highlight = "ArfOutput" },
+		{ text = "def", highlight = "ArfStderr" },
 	},
-	9
-)
+	error = "日本",
+}, 9)
 eq(result.text, "abcdef", "retain stdout and stderr")
 eq(result.error, "日", "error shares the byte budget")
 eq(result.truncated, true, "error truncation is reported")
 eq(result.chunks[2].highlight, "ArfStderr", "retain chunk highlights")
-result = output.limit(
-	{
-		text = "日x",
-		chunks = {
-			{ text = "日", highlight = "ArfMessage" },
-			{ text = "x", highlight = "ArfStderr" },
-		},
+result = output.limit({
+	text = "日x",
+	chunks = {
+		{ text = "日", highlight = "ArfMessage" },
+		{ text = "x", highlight = "ArfStderr" },
 	},
-	2
-)
+}, 2)
 eq(result.text, "", "do not skip a cut character to retain a later chunk")
 eq(output.limit({ text = "abc", error = "d" }, 3).error, "", "exhausted budget retains error status")
 
@@ -60,17 +54,14 @@ eq(chunks, {
 	{ text = "hello\n", highlight = "ArfMessage" },
 	{ text = "end", highlight = "ArfStderr" },
 }, "classify messages by matching raw offsets")
-local lines, total = output.lines(
-	{
-		text = "a\nb\n\nc",
-		chunks = {
-			{ text = "a", highlight = "ArfOutput" },
-			{ text = "\nb\n", highlight = "ArfMessage" },
-			{ text = "\nc", highlight = "ArfStderr" },
-		},
+local lines, total = output.lines({
+	text = "a\nb\n\nc",
+	chunks = {
+		{ text = "a", highlight = "ArfOutput" },
+		{ text = "\nb\n", highlight = "ArfMessage" },
+		{ text = "\nc", highlight = "ArfStderr" },
 	},
-	3
-)
+}, 3)
 eq(total, 4, "count lines across chunks")
 eq(lines, {
 	{ { "a", "ArfOutput" } },
@@ -81,9 +72,13 @@ eq(output.full_lines({ text = "" }), {}, "empty output")
 eq(output.full_lines({ text = "", error = "failed" }), {
 	{ { "R error: failed", "ArfError" } },
 }, "error-only output")
-require("arf").config.inline_max_lines = 2
-lines = output.preview({ text = "a\nb\nc", truncated = true })
+lines = output.preview({ text = "a\nb\nc", truncated = true }, 2)
 eq(#lines, 4, "notices do not consume preview body limit")
 eq(lines[3][1][1], "… 1 more lines (view with :ArfOutput)", "omitted line count")
 eq(lines[4][1][2], "ArfWarning", "retention notice")
+
+eq(output.full_lines({ text = "partial", status = "interrupted", error = "R evaluation interrupted" }), {
+	{ { "partial", "ArfOutput" } },
+	{ { "R evaluation interrupted", "ArfInterrupted" } },
+}, "interruption retains partial output and uses its own highlight without an error prefix")
 print("output tests passed (" .. checks .. " checks)")

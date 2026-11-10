@@ -7,6 +7,7 @@ local float_highlights = {
 	ArfMessage = "ArfFloatMessage",
 	ArfStderr = "ArfFloatStderr",
 	ArfError = "ArfFloatError",
+	ArfInterrupted = "ArfFloatInterrupted",
 	ArfWarning = "ArfFloatWarning",
 }
 
