@@ -95,22 +95,28 @@ plot(x$mpg, x$wt)
 `inspect()` では、カーソル位置のオブジェクトに適用する R 関数を指定できます。構造を調べる `str()` や、モデルの評価指標を表示する関数もキーに割り当てられます。lazy.nvim の `keys` に追加してください。
 
 ```lua
-{
-  "<LocalLeader>ft",
-  function() require("arf").inspect("utils::str") end,
-  ft = "r",
-  desc = "Inspect R object structure",
-},
-{
-  "<LocalLeader>fp",
-  function()
-    require("arf").inspect("performance::model_performance", {
-      title = "Model performance",
-    })
-  end,
-  ft = "r",
-  desc = "Inspect model performance",
-},
+return {
+  "topazape/arf.nvim",
+  opts = {},
+  keys = {
+    {
+      "<LocalLeader>ft",
+      function() require("arf").inspect("utils::str") end,
+      ft = "r",
+      desc = "Inspect R object structure",
+    },
+    {
+      "<LocalLeader>fp",
+      function()
+        require("arf").inspect("performance::model_performance", {
+          title = "Model performance",
+        })
+      end,
+      ft = "r",
+      desc = "Inspect model performance",
+    },
+  },
+}
 ```
 
 指定した関数にはオブジェクトが唯一の引数として渡され、テキスト結果をフロートに表示します。`package::function` はパッケージのインストールが必要ですが、`library()` は不要です。セッション内で定義した関数名も指定できます。追加の引数を渡す例などは `:help arf-inspect` を参照してください。

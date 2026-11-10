@@ -95,22 +95,28 @@ After running the code that creates an object, place the cursor on its name and 
 With `inspect()`, choose the R function to apply to the object under the cursor. Bind keys to `str()` for its structure or a model assessment function for evaluation metrics. Add these entries to your lazy.nvim `keys` table:
 
 ```lua
-{
-  "<LocalLeader>ft",
-  function() require("arf").inspect("utils::str") end,
-  ft = "r",
-  desc = "Inspect R object structure",
-},
-{
-  "<LocalLeader>fp",
-  function()
-    require("arf").inspect("performance::model_performance", {
-      title = "Model performance",
-    })
-  end,
-  ft = "r",
-  desc = "Inspect model performance",
-},
+return {
+  "topazape/arf.nvim",
+  opts = {},
+  keys = {
+    {
+      "<LocalLeader>ft",
+      function() require("arf").inspect("utils::str") end,
+      ft = "r",
+      desc = "Inspect R object structure",
+    },
+    {
+      "<LocalLeader>fp",
+      function()
+        require("arf").inspect("performance::model_performance", {
+          title = "Model performance",
+        })
+      end,
+      ft = "r",
+      desc = "Inspect model performance",
+    },
+  },
+}
 ```
 
 The function receives the object as its only argument, and its text output appears in a float. Install the package before using `package::function`; `library()` is unnecessary. You can also pass the name of a function defined in the session. See `:help arf-inspect` for examples with additional arguments.
