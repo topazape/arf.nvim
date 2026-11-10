@@ -18,6 +18,7 @@
 - 式単位・選択範囲・バッファ全体を実行。
 - R セッションを自動起動し、実行の間でオブジェクトを保持。
 - 保存した出力の確認、オブジェクトの検査、プロットのコピー。
+- カーソル位置のオブジェクトの `summary()` を表示。`inspect()` で `str()` やモデル診断関数も呼び出せます。
 - 結果は仮想行に表示し、ソースファイルはそのまま。
 
 ## 必要なもの
@@ -44,6 +45,7 @@ return {
     { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
+    { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
     { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
   },
 }
@@ -84,11 +86,40 @@ plot(x$mpg, x$wt)
   <img src="assets/object-picker.png" alt="R オブジェクトの名前・クラス・サイズを一覧表示" width="720">
 </p>
 
-オブジェクト名にカーソルを置いて `:ArfSummary` を使えば、直接確認できます。結果は `q` で閉じます。
+オブジェクトを作成するコードを実行したあと、その名前にカーソルを置いて `<LocalLeader>fk`（上の設定例では `\fk`）または `:ArfSummary` を使うと、`base::summary()` の結果をフロートに表示します。結果は `q` で閉じます。
 
 <p align="center">
   <img src="assets/object-summary.png" alt="線形モデルのサマリーをフロートで表示" width="720">
 </p>
+
+`inspect()` では、カーソル位置のオブジェクトに適用する R 関数を指定できます。構造を調べる `str()` や、モデルの評価指標を表示する関数もキーに割り当てられます。lazy.nvim の `keys` に追加してください。
+
+```lua
+return {
+  "topazape/arf.nvim",
+  opts = {},
+  keys = {
+    {
+      "<LocalLeader>ft",
+      function() require("arf").inspect("utils::str") end,
+      ft = "r",
+      desc = "Inspect R object structure",
+    },
+    {
+      "<LocalLeader>fp",
+      function()
+        require("arf").inspect("performance::model_performance", {
+          title = "Model performance",
+        })
+      end,
+      ft = "r",
+      desc = "Inspect model performance",
+    },
+  },
+}
+```
+
+指定した関数にはオブジェクトが唯一の引数として渡され、テキスト結果をフロートに表示します。`package::function` はパッケージのインストールが必要ですが、`library()` は不要です。セッション内で定義した関数名も指定できます。追加の引数を渡す例などは `:help arf-inspect` を参照してください。
 
 ## 設定
 

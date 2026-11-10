@@ -18,6 +18,7 @@ Powered by [arf](https://github.com/eitsupi/arf).
 - Run an expression, selected lines, or the whole buffer.
 - Keep R objects between runs with an automatically started session.
 - Read saved output, inspect objects, and copy plots.
+- Show `summary()` for the object under the cursor. Use `inspect()` to call `str()` or model diagnostic functions too.
 - Keep source files untouched; results live in virtual lines.
 
 ## Requirements
@@ -44,6 +45,7 @@ return {
     { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
+    { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
     { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
   },
 }
@@ -84,11 +86,40 @@ Press `<CR>` for a summary or `p` in Normal mode to print the selected object.
   <img src="assets/object-picker.png" alt="R objects with their names, classes, and dimensions" width="720">
 </p>
 
-Use `:ArfSummary` on an object name to inspect it directly. Press `q` to close the result.
+After running the code that creates an object, place the cursor on its name and press `<LocalLeader>fk` (`\fk` with the configuration above), or run `:ArfSummary`. This shows the result of `base::summary()` in a float. Press `q` to close it.
 
 <p align="center">
   <img src="assets/object-summary.png" alt="Linear model summary in a floating window" width="720">
 </p>
+
+With `inspect()`, choose the R function to apply to the object under the cursor. Bind keys to `str()` for its structure or a model assessment function for evaluation metrics. Add these entries to your lazy.nvim `keys` table:
+
+```lua
+return {
+  "topazape/arf.nvim",
+  opts = {},
+  keys = {
+    {
+      "<LocalLeader>ft",
+      function() require("arf").inspect("utils::str") end,
+      ft = "r",
+      desc = "Inspect R object structure",
+    },
+    {
+      "<LocalLeader>fp",
+      function()
+        require("arf").inspect("performance::model_performance", {
+          title = "Model performance",
+        })
+      end,
+      ft = "r",
+      desc = "Inspect model performance",
+    },
+  },
+}
+```
+
+The function receives the object as its only argument, and its text output appears in a float. Install the package before using `package::function`; `library()` is unnecessary. You can also pass the name of a function defined in the session. See `:help arf-inspect` for examples with additional arguments.
 
 ## Configuration
 
