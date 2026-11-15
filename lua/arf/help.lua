@@ -5,11 +5,13 @@ local function unquote(name)
 	return name:sub(1, 1) == "`" and name:sub(-1) == "`" and name:sub(2, -2) or name
 end
 
-local function next_name(line, from)
-	local first, last = line:find("[%a_.\128-\255][%w_.\128-\255]*", from)
-	local quoted_first, quoted_last = line:find("`[^`]+`", from)
-	if quoted_first and (not first or quoted_first <= first) then
-		return quoted_first, quoted_last
+local function next_topic(line, from)
+	local first, last
+	for _, pattern in ipairs({ "[%a_.\128-\255][%w_.\128-\255]*", "`[^`]+`", "%%[^%%]*%%" }) do
+		local start, finish = line:find(pattern, from)
+		if start and (not first or start < first) then
+			first, last = start, finish
+		end
 	end
 	return first, last
 end
@@ -18,26 +20,14 @@ local function cursor_topic()
 	local line = vim.api.nvim_get_current_line()
 	local col = vim.api.nvim_win_get_cursor(0)[2] + 1
 	local from = 1
-	-- Match complete infix operators before the identifier inside them.
 	while true do
-		local first, last = line:find("%%[^%%]*%%", from)
-		if not first then
-			break
-		end
-		if first <= col and col <= last then
-			return line:sub(first, last)
-		end
-		from = last + 1
-	end
-	from = 1
-	while true do
-		local first, last = next_name(line, from)
+		local first, last = next_topic(line, from)
 		if not first then
 			break
 		end
 		local separator = line:sub(last + 1):match("^%s*:::%s*") or line:sub(last + 1):match("^%s*::%s*")
 		if separator then
-			local name_first, name_last = next_name(line, last + #separator + 1)
+			local name_first, name_last = next_topic(line, last + #separator + 1)
 			if name_first == last + #separator + 1 then
 				last = name_last
 			end
@@ -94,8 +84,12 @@ local function process_error(process)
 	return stderr ~= "" and stderr or "arf help lookup failed (" .. tostring(process.code) .. ")"
 end
 
-function M.show(topic)
+function M.cancel()
 	generation = generation + 1
+end
+
+function M.show(topic)
+	M.cancel()
 	local request = generation
 	if topic == nil then
 		topic = cursor_topic()
