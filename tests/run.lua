@@ -5,6 +5,7 @@ local suites = {
 	"execution",
 	"inspect",
 	"objects",
+	"help",
 	"output",
 	"results",
 	"session",

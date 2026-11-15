@@ -113,4 +113,18 @@ local interrupted_marks = vim.api.nvim_buf_get_extmarks(
 )
 assert(interrupted_marks[1][4].hl_group == "ArfFloatInterrupted")
 float.close(source)
+
+vim.api.nvim_set_current_buf(source)
+local help = float.open("stats::lm", { { { "# Fitting Linear Models" } }, { { "lm(formula, data)" } } }, {
+	width = 40,
+	max_height = 10,
+	owner = source,
+	filetype = "markdown",
+	wrap = true,
+})
+local help_buf = vim.api.nvim_win_get_buf(help)
+assert(vim.bo[help_buf].filetype == "markdown" and vim.wo[help].wrap, "help uses wrapped Markdown")
+assert(vim.b[help_buf].current_syntax == "markdown", "Markdown syntax works without a Tree-sitter parser")
+assert(not vim.bo[help_buf].modifiable, "help is read-only")
+float.close(source)
 print("saved output and float tests passed")
