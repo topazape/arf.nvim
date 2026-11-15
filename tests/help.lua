@@ -6,6 +6,7 @@ local source_win = vim.api.nvim_get_current_win()
 local requests, notices, opened, selections = {}, {}, {}, {}
 local startup_count, startup_callback, startup_failure = 0, nil, nil
 local defer_startup, fail_process, fail_float = false, false, false
+local stop_allowed = true
 local checks = 0
 local function check(value, message)
 	checks = checks + 1
@@ -32,6 +33,9 @@ package.loaded["arf.execution"] = {
 	run = function()
 		error("help must not evaluate R")
 	end,
+	stop = function()
+		return stop_allowed
+	end,
 }
 package.loaded["arf.executor"] = {
 	eval = function()
@@ -39,6 +43,7 @@ package.loaded["arf.executor"] = {
 	end,
 }
 package.loaded["arf.float"] = {
+	close = function() end,
 	open = function(title, lines, opts)
 		if fail_float then
 			error("float failure")
@@ -60,6 +65,7 @@ local function reset(line, col)
 	requests, notices, opened, selections = {}, {}, {}, {}
 	startup_count, startup_callback, startup_failure = 0, nil, nil
 	defer_startup, fail_process, fail_float = false, false, false
+	stop_allowed = true
 	vim.api.nvim_set_current_win(source_win)
 	vim.api.nvim_set_current_buf(source)
 	vim.api.nvim_buf_set_lines(source, 0, -1, false, { line or "lm(y ~ x)" })
@@ -139,6 +145,19 @@ reset("x %in% y", 3)
 arf.help()
 check(topic(requests[1]) == "%in%", "resolve an infix operator from its interior")
 finish(requests[1], page())
+-- A qualified operator must retain its package at every part of the token.
+for _, separator in ipairs({ "::", ":::" }) do
+	local prefix = "magrittr" .. separator
+	for _, col in ipairs({ 0, 8, #prefix, #prefix + 1, #prefix + 2 }) do
+		reset(prefix .. "`%>%`(x, f)", col)
+		arf.help()
+		check(
+			topic(requests[1]) == "%>%" and arg(requests[1], "--package") == "magrittr",
+			"qualified infix operator retains its package"
+		)
+		finish(requests[1], page())
+	end
+end
 reset()
 arf.help("stats::lm")
 check(topic(requests[1]) == "lm" and arg(requests[1], "--package") == "stats", "explicit qualified topic")
@@ -260,4 +279,38 @@ arf.help("new")
 selections[1].callback(candidates[1])
 check(#requests == 2, "old selection cannot start a lookup after a newer request")
 finish(requests[2], page())
+
+-- Stop invalidates every pending help stage, including sessions with no results.
+reset()
+arf.help()
+arf.stop()
+finish(requests[1], page())
+check(#opened == 0, "late help response cannot reopen a float after stopping")
+arf.help()
+finish(requests[2], page("# Fresh help"))
+check(#opened == 1 and text() == "# Fresh help", "new help remains usable after stopping")
+reset()
+arf.help()
+arf.stop()
+finish(requests[1], "", 4, '{"error":{"message":"late failure"}}')
+check(#notices == 0, "ignore late help errors after stopping")
+reset()
+defer_startup = true
+arf.help()
+arf.stop()
+startup_callback(123)
+vim.wait(20)
+check(#requests == 0, "stopping during startup prevents the pending help lookup")
+reset()
+arf.help("shared")
+finish(requests[1], { kind = "candidates", candidates = candidates })
+arf.stop()
+selections[1].callback(candidates[1])
+check(#requests == 1 and #opened == 0, "stopping invalidates pending help selection")
+reset()
+stop_allowed = false
+arf.help()
+arf.stop()
+finish(requests[1], page())
+check(#opened == 1, "a refused stop preserves pending help for the external session")
 print("help tests passed (" .. checks .. " checks)")
