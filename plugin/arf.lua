@@ -25,6 +25,10 @@ vim.api.nvim_create_user_command("ArfSummary", function()
 	require("arf").inspect("base::summary")
 end, { desc = "Show summary of the R object under the cursor" })
 
+vim.api.nvim_create_user_command("ArfHelp", function(opts)
+	require("arf").help(opts.args ~= "" and opts.args or nil)
+end, { nargs = "?", desc = "Show R help for the topic under the cursor or a specified topic" })
+
 vim.api.nvim_create_user_command("ArfStop", function()
 	require("arf").stop()
 end, { desc = "Stop the owned arf session and clear all results" })
