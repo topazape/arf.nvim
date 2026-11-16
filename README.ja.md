@@ -44,6 +44,7 @@ return {
   keys = {
     { "<LocalLeader>fr", "<Cmd>ArfRun<CR>", ft = "r", desc = "Run R expression" },
     { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
+    { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
@@ -76,7 +77,7 @@ plot(x$mpg, x$wt)
 
 ほかの操作：
 
-- `:ArfRunAll`：バッファ全体を実行。
+- `<LocalLeader>fR` または `:ArfRunAll`：バッファ全体を実行。
 - `:ArfCopyPlot`：最後の保存済みプロットをコピー。
 - `:ArfStop`：自動起動したセッションを終了し、結果を消す。
 

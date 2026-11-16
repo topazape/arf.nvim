@@ -44,6 +44,7 @@ return {
   keys = {
     { "<LocalLeader>fr", "<Cmd>ArfRun<CR>", ft = "r", desc = "Run R expression" },
     { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
+    { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
@@ -76,7 +77,7 @@ Place the cursor on each line and press `<LocalLeader>fr` in order. The first ru
 
 To go further:
 
-- `:ArfRunAll` runs the whole buffer.
+- `<LocalLeader>fR` or `:ArfRunAll` runs the whole buffer.
 - `:ArfCopyPlot` copies the latest saved plot.
 - `:ArfStop` ends the automatically started session and clears its results.
 
