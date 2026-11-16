@@ -11,6 +11,7 @@ CONTENTS                                             *arf* *arf.nvim*
     Execution               |arf-execution|
     Object Picker           |arf-objects|
     Object inspection       |arf-inspect|
+    R help                  |arf-help|
     Configuration           |arf-configuration|
     Session                 |arf-session|
     Plots                   |arf-plots|
@@ -74,6 +75,10 @@ COMMANDS                                                       *arf-commands*
 :ArfObjects                                                  *:ArfObjects*
     Search and inspect objects in the R session. See |arf-objects|.
 
+:ArfHelp [topic]                                                *:ArfHelp*
+    Show R help for the topic under the cursor or an explicit topic, such as
+    :ArfHelp stats::lm. See |arf-help|.
+
 :ArfCopyPlot                                                *:ArfCopyPlot*
     Copy the final image of the most recent saved plot result across all
     buffers. Cleared or replaced results are not copied.
@@ -109,6 +114,7 @@ Optional entries for the lazy.nvim keys table:
     { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
     { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
+    { "<LocalLeader>fh", "<Cmd>ArfHelp<CR>", ft = "r", desc = "Show R help" },
 <
 
 ==============================================================================
@@ -206,6 +212,37 @@ arguments:
 <
 
 ==============================================================================
+R HELP                                                            *arf-help*
+
+Use :ArfHelp or require("arf").help() to show the help topic under the cursor.
+Pass a topic explicitly to look up a qualified name or an operator:
+
+>vim
+    :ArfHelp stats::lm
+    :ArfHelp +
+<
+
+The Markdown page opens in a float with syntax highlighting and line wrapping.
+Scroll normally, use / to search or y to copy, and q to close. Size is shared
+with output and inspection floats through float_window.width and
+float_window.max_height. No keymap or additional plugin is required.
+
+Help lookup starts the R session when needed but does not evaluate R code.
+It remains available while R is busy, including during ArfRunAll. It reads
+installed help topics, not vignettes or demos. The package need not be
+attached with library().
+
+Unqualified topics search installed packages, rather than following R's ?
+package attach order. If several topics match, vim.ui.select() offers a
+choice. Use package::topic to select a package explicitly. Links within a help
+page are displayed as Markdown; following them is not supported.
+
+arf caches its library paths at session startup. Packages newly installed into
+an existing library can be found, but changes to .libPaths() require
+restarting an automatically started session with :ArfStop before the next
+help lookup.
+
+==============================================================================
 CONFIGURATION                                             *arf-configuration*
 
 Set only the options you want to change, using opts in your lazy.nvim spec.
@@ -232,7 +269,7 @@ calls to setup() merge the supplied options into the current configuration.
         border = "line",          -- "rounded", "single", "double", "line", or "none"
       },
 
-      float_window = {          -- shared by saved output and object inspections
+      float_window = {          -- shared by output, inspections, and R help
         width = "60%",            -- "auto", positive integer, or "1%" to "100%"
         max_height = 30,
       },
@@ -336,9 +373,9 @@ the rest with :ArfOutput.
   explicit print(..., width = ...) takes precedence. Resizing requires re-
   evaluation.
 - float_window.width / float_window.max_height: shared float size for saved
-  output, summary, and other inspections. float_window.width = "auto" uses the
-  editor width minus borders and margins when opened; a positive integer
-  specifies columns; a string such as "90%" specifies a percentage of the
+  output, summary, other inspections, and R help. float_window.width = "auto"
+  uses the editor width minus borders and margins when opened; a positive
+  integer specifies columns; a string such as "90%" specifies a percentage of the
   editor width (integer 1–100%). Floats fit the screen and shrink vertically
   for short output. Images appear only inline.
 
@@ -404,6 +441,8 @@ Commands and custom keymaps can use the same Lua API:
     arf.clear(bufnr)      -- Clear a buffer; 0 means the current buffer
     arf.inspect(fn, opts) -- Call an R function on the object under the cursor; opts.title is optional
     arf.objects()         -- Pick a global R object to inspect
+    arf.help()            -- Show R help for the topic under the cursor
+    arf.help("stats::lm")  -- Show R help for an explicit topic
     arf.output()          -- Show saved output at the cursor without evaluating R again
     arf.copy_plot()       -- Copy the most recent plot image to the clipboard
     arf.interrupt()       -- Interrupt evaluation and stop subsequent expressions; keep R objects
@@ -412,6 +451,7 @@ Commands and custom keymaps can use the same Lua API:
 
 R evaluation through run, run_all, inspect, and objects is asynchronous. clear
 does not interrupt running R code; use stop to terminate the owned session.
+help is asynchronous and remains available during evaluation.
 
 ==============================================================================
 HIGHLIGHTS                                                   *arf-highlights*

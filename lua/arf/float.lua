@@ -58,6 +58,12 @@ function M.open(title, lines, opts)
 		end
 	end
 	vim.bo[buf].modifiable = false
+	if opts.filetype then
+		vim.bo[buf].filetype = opts.filetype
+		vim.api.nvim_buf_call(buf, function()
+			vim.cmd.runtime({ bang = true, args = { "syntax/" .. opts.filetype .. ".vim" } })
+		end)
+	end
 	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",
 		style = "minimal",
@@ -70,7 +76,7 @@ function M.open(title, lines, opts)
 		title_pos = "center",
 	})
 	window, owner = win, opts.owner
-	vim.wo[win].wrap = false
+	vim.wo[win].wrap = opts.wrap == true
 	vim.wo[win].winhighlight =
 		"Normal:ArfFloatNormal,NormalFloat:ArfFloatNormal,FloatBorder:ArfFloatBorder,FloatTitle:ArfFloatTitle"
 	vim.keymap.set("n", "q", function()
