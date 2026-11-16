@@ -47,6 +47,7 @@ return {
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
+    { "<LocalLeader>fh", "<Cmd>ArfHelp<CR>", ft = "r", desc = "Open R help" },
     { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
   },
 }
@@ -124,7 +125,7 @@ return {
 
 ## R のヘルプ
 
-関数名にカーソルを置いて `:ArfHelp` を実行するか、`:ArfHelp stats::lm` のようにトピックを指定します。Markdown のヘルプをフロートに表示し、通常のスクロール、`/` で検索、`q` で終了できます。複数のパッケージに同名のトピックがある場合は、候補から選びます。
+関数名にカーソルを置いて `<LocalLeader>fh`（上の設定例では `\fh`）または `:ArfHelp` を使います。`:ArfHelp stats::lm` のようにトピックを指定することもできます。Markdown のヘルプをフロートに表示し、通常のスクロール、`/` で検索、`q` で終了できます。複数のパッケージに同名のトピックがある場合は、候補から選びます。
 
 R コードを評価せず、セッションで利用するインストール済みパッケージから取得するため、計算中も開けます。追加のプラグインは不要です。R の `?` と異なり、パッケージの読み込み順では解決しません。パッケージを指定する場合は `package::topic` を使ってください。詳細は `:help arf-help` を参照してください。
 
