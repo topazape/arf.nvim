@@ -47,6 +47,7 @@ return {
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
+    { "<LocalLeader>fl", "<Cmd>ArfObjects<CR>", ft = "r", desc = "List R objects" },
     { "<LocalLeader>fh", "<Cmd>ArfHelp<CR>", ft = "r", desc = "Open R help" },
     { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
   },
@@ -81,7 +82,7 @@ plot(x$mpg, x$wt)
 
 ## オブジェクトの検査
 
-`:ArfObjects` で、現在の R セッションのオブジェクトを Snacks.picker から探せます。
+`<LocalLeader>fl`（上の設定例では `\fl`）または `:ArfObjects` で、現在の R セッションのオブジェクトを Snacks.picker から探せます。
 `<CR>` でサマリーを表示し、通常モードの `p` で選んだオブジェクトを出力します。
 自動起動したセッションでは、実行期限を5秒に設定した専用ハンドラーでメタデータを取得します。`pid` で接続する既存セッションでは、従来のRコード評価による取得を使います。
 

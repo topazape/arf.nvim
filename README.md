@@ -47,6 +47,7 @@ return {
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
+    { "<LocalLeader>fl", "<Cmd>ArfObjects<CR>", ft = "r", desc = "List R objects" },
     { "<LocalLeader>fh", "<Cmd>ArfHelp<CR>", ft = "r", desc = "Open R help" },
     { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
   },
@@ -81,7 +82,7 @@ To go further:
 
 ## Inspect objects
 
-Use `:ArfObjects` to search objects in the current R session with Snacks.picker.
+Press `<LocalLeader>fl` (`\fl` with the configuration above), or run `:ArfObjects`, to search objects in the current R session with Snacks.picker.
 Press `<CR>` for a summary or `p` in Normal mode to print the selected object.
 Automatically started sessions fetch metadata through a dedicated handler with a five-second execution deadline. Existing sessions selected with `pid` keep the evaluation-based lookup.
 
