@@ -203,6 +203,8 @@ require("arf").setup({
 
 </details>
 
+`eval_timeout_ms` limits the IPC response wait. If R is still running after a timeout, arf.nvim keeps the session busy until capture cleanup finishes. Use `:ArfInterrupt` to interrupt that evaluation, or `:ArfStop` to terminate an automatically started session.
+
 `inline.border` accepts `"line"` (default), `"single"`, `"rounded"`, `"double"`, or `"none"`. Enclosed previews clip long lines to fit the narrowest window showing the buffer in the current tab. Open `:ArfOutput` to read the full retained text.
 
 See [the help](doc/arf.txt) (`:help arf`) for all settings, commands, custom inspection, and troubleshooting. Full defaults: `:help arf-configuration`.

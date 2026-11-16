@@ -3,6 +3,7 @@ vim.opt.rtp:prepend(vim.fn.getcwd())
 local execution = require("arf.execution")
 local config = require("arf.config")
 local startup, pending, sent, interrupts, notices = nil, nil, {}, {}, {}
+local on_timeout, interrupt_options
 local stopped, cancelled, cleaned, discarded = 0, 0, 0, 0
 vim.notify = function(message)
 	notices[#notices + 1] = message
@@ -16,14 +17,16 @@ package.loaded["arf.session"] = {
 	end,
 }
 package.loaded["arf.executor"] = {
-	eval = function(code, options, callback)
+	eval = function(code, options, callback, timeout_callback)
+		on_timeout = timeout_callback
 		sent[#sent + 1] = { code = code, options = vim.deepcopy(options) }
 		pending = callback
 		return function()
 			cancelled = cancelled + 1
 		end
 	end,
-	interrupt = function(_, callback)
+	interrupt = function(options, callback)
+		interrupt_options = vim.deepcopy(options)
 		interrupts[#interrupts + 1] = callback
 	end,
 }
@@ -160,6 +163,34 @@ start()
 config.setup({ pid = 789 })
 assert(execution.stop() and stopped == stops_before + 1, "stop still owns an automatic startup")
 config.setup({ pid = false })
+start()
+ready()
+pending(result())
+-- A metadata request returns plain items, sharing only the session lifecycle.
+local received
+execution.request(function(options, callback)
+	assert(options.pid == 123)
+	callback({ { name = "x" } })
+end, {
+	result = function(items)
+		received = items
+	end,
+})
+ready()
+assert(received[1].name == "x", "metadata needs no status or cleanup placeholders")
+-- Timed-out evaluations hold the guard and retain a targeted interrupt handle.
+start(nil, { "slow", "must not run" })
+ready()
+on_timeout(77)
+local sent_count = #sent
+start()
+assert(#sent == sent_count and notices[#notices]:find("R is running", 1, true))
+execution.interrupt()
+assert(interrupt_options.execution_id == 77, "interrupt the timed-out execution only")
+interrupts[#interrupts](true)
+pending(nil, "Request timed out")
+drain()
+assert(#sent == sent_count, "timeout does not advance the sequence")
 start()
 ready()
 pending(result())

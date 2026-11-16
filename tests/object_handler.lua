@@ -20,7 +20,7 @@ package.loaded["arf.executor"] = {
 	eval = function(code, options, callback)
 		evaluations = evaluations + 1
 		assert(code == objects.code and options.external)
-		callback({ text = "borrowed", cleanup = function() end })
+		callback({ text = "626f72726f776564\t\t\n", cleanup = function() end })
 	end,
 }
 local function receive(result, err)
@@ -32,7 +32,7 @@ local function finish(index, value, code, stderr)
 end
 local function start()
 	calls, replies = {}, {}
-	return objects.eval(objects.code, config, receive)
+	return objects.fetch(config, receive)
 end
 local supported = { capabilities = { "call_execution_timeout" } }
 local name = 'a b\n日本語"'
@@ -52,7 +52,7 @@ assert(vim.deep_equal(calls[2].args, {
 	"5000",
 }))
 finish(2, { value = { { name = name, class = "tbl_df", size = "12,450 × 8" } } })
-local item = replies[1].result.items[1]
+local item = replies[1].result[1]
 assert(item.name == name and item.text == name and item.class == "tbl_df" and item.size == "12,450 × 8")
 assert(evaluations == 0, "owned metadata bypasses code evaluation and plot capture")
 
@@ -63,7 +63,7 @@ assert(not replies[1].result and replies[1].err:find("invalid object list", 1, t
 start()
 finish(1, supported)
 finish(2, { value = {} })
-assert(#replies[1].result.items == 0, "empty environments produce an empty picker")
+assert(#replies[1].result == 0, "empty environments produce an empty picker")
 for _, value in ipairs({ false, { { name = "x", class = 4, size = "" } }, { vim.NIL } }) do
 	start()
 	finish(1, supported)
@@ -106,13 +106,13 @@ vim.system = function()
 	error("spawn failure")
 end
 replies = {}
-objects.eval(objects.code, config, receive)
+objects.fetch(config, receive)
 assert(replies[1].err:find("spawn failure", 1, true))
 vim.system = system
 config.external = true
 calls, replies = {}, {}
-objects.eval(objects.code, config, receive)
-assert(evaluations == 1 and #calls == 0 and replies[1].result.text == "borrowed", "borrowed sessions retain eval")
+objects.fetch(config, receive)
+assert(evaluations == 1 and #calls == 0 and replies[1].result[1].name == "borrowed", "borrowed sessions retain eval")
 
 -- The existing execution lifecycle also owns native queries: no concurrent evals,
 -- and stopping an otherwise empty session discards metadata that arrives later.

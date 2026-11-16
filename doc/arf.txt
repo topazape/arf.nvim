@@ -334,9 +334,10 @@ SESSION                                                         *arf-session*
 - startup_timeout_ms: startup wait time. Failed or timed-out startup is retried
   on the next evaluation.
 - eval_timeout_ms: IPC response wait time for each evaluation, not for the
-  entire ArfRunAll sequence. A timeout alone does not stop R computation; use ArfStop
-  to terminate the owned session. Stop evaluations in an external session
-  separately.
+  entire ArfRunAll sequence. A timeout alone does not stop R computation.
+  Running evaluations retain their capture files and execution guard until R
+  finalizes output or exits. Use ArfInterrupt to interrupt the timed-out
+  evaluation, or ArfStop to terminate an owned session.
 
 PLOTS                                                             *arf-plots*
 

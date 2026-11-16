@@ -81,9 +81,27 @@ local function native_items(value)
 	return items
 end
 
-function M.eval(code, config, callback)
+function M.fetch(config, callback, on_timeout)
 	if config.external then
-		return require("arf.executor").eval(code, config, callback)
+		return require("arf.executor").eval(M.code, config, function(result, err)
+			if not result then
+				return callback(nil, err)
+			end
+			local ok, items = pcall(function()
+				if result.error or result.truncated then
+					error(result.error or "Object list exceeded output.max_bytes", 0)
+				end
+				return M.decode(result.text)
+			end)
+			local cleaned, cleanup_error = pcall(result.cleanup)
+			if not cleaned then
+				return callback(nil, "Object lookup cleanup failed: " .. tostring(cleanup_error))
+			end
+			if not ok then
+				return callback(nil, "Unable to read object list: " .. tostring(items))
+			end
+			callback(items)
+		end, on_timeout)
 	end
 	local cancelled, process = false, nil
 	local function finish(result, err)
@@ -148,7 +166,7 @@ function M.eval(code, config, callback)
 			"--execution-timeout",
 			"5000",
 		}, function(reply)
-			finish({ items = native_items(reply.value), status = "ok", cleanup = function() end })
+			finish(native_items(reply.value))
 		end, config.output.max_bytes)
 	end)
 	return function()

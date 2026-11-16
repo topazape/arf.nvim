@@ -203,6 +203,8 @@ require("arf").setup({
 
 </details>
 
+`eval_timeout_ms` は IPC 応答の待ち時間です。タイムアウト後も R が実行中の場合は、出力の後処理が終わるまで実行状態を保持します。`:ArfInterrupt` でその評価を中断するか、`:ArfStop` で自動起動したセッションを終了できます。
+
 `inline.border` は `"line"`（既定）、`"single"`、`"rounded"`、`"double"`、`"none"` から選べます。囲み枠では、現在のタブで同じバッファを表示している最も狭いウィンドウに合わせて長い行を省略します。保持されている全文は `:ArfOutput` で確認できます。
 
 全設定・コマンド・独自のオブジェクト検査・困ったときの対処は、[ヘルプ](doc/arf.txt)（`:help arf`）を参照してください。全設定の既定値は `:help arf-configuration` にあります。
