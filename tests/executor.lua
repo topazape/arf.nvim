@@ -8,6 +8,7 @@ local config = vim.tbl_deep_extend(
 )
 local original = vim.system
 local original_hrtime = vim.uv.hrtime
+local original_kill = vim.uv.kill
 local now = 1000000000
 vim.uv.hrtime = function()
 	return now
@@ -33,10 +34,13 @@ vim.system = function(argv, opts, callback)
 		end,
 	}
 end
+local timeout_id
 local function start()
-	result, failure, killed = nil, nil, nil
+	result, failure, killed, timeout_id = nil, nil, nil, nil
 	return executor.eval('cat("日本"); # $HOME `literal`', config, function(value, err)
 		result, failure = value, err
+	end, function(id)
+		timeout_id = id
 	end)
 end
 local function finish(code, stdout, stderr)
@@ -124,6 +128,52 @@ for _, status in ipairs({ "ok", "error", "interrupted", "unknown" }) do
 	check((result.error == nil) == (status == "ok"), "only ok succeeds: " .. status)
 	result.cleanup()
 end
+-- A response timeout does not end R execution or release its files.
+vim.uv.kill = function(pid, signal)
+	check(pid == 42 and signal == 0, "probe the target session without signaling it")
+	return 0
+end
+local timeout =
+	vim.json.encode({ error = {
+		code = "TIMEOUT",
+		message = "Request timed out",
+		data = { execution_id = 7 },
+	} })
+start()
+finish(4, "", timeout)
+check(timeout_id == 7 and not result and not failure, "report running execution without completing the request")
+check(vim.fn.isdirectory(dir) == 1, "retain captures while R is still using them")
+vim.fn.writefile({}, dir .. "/finished")
+check(
+	vim.wait(1000, function()
+		return failure ~= nil
+	end),
+	"complete when R finalizes its captures"
+)
+check(failure == "Request timed out" and vim.fn.isdirectory(dir) == 0, "release captures after finalization")
+-- A queued request never starts, so its timeout needs no completion marker.
+start()
+finish(4, "", vim.json.encode({ error = { code = "TIMEOUT", data = {} } }))
+check(failure and not timeout_id and vim.fn.isdirectory(dir) == 0, "queued timeout releases immediately")
+local cancel_timeout = start()
+finish(4, "", timeout)
+cancel_timeout() -- The owner has stopped R before invoking this handle.
+check(vim.fn.isdirectory(dir) == 0, "stopping releases a timeout wait")
+vim.wait(120)
+check(not result and not failure, "cancelled timeout timer cannot deliver a result")
+start()
+finish(4, "", timeout)
+vim.uv.kill = function()
+	return nil, "ESRCH: no such process"
+end
+check(
+	vim.wait(1000, function()
+		return failure ~= nil
+	end),
+	"session exit also ends the wait"
+)
+check(vim.fn.isdirectory(dir) == 0, "dead sessions no longer own captures")
+vim.uv.kill = original_kill
 local interrupt_args, interrupt_reply
 vim.system = function(argv, _, callback)
 	interrupt_args = argv
@@ -141,6 +191,14 @@ check(
 	vim.deep_equal(interrupt_args, { "arf", "ipc", "interrupt", "--pid", "42" }),
 	"interrupt targets explicit session"
 )
+config.execution_id = 7
+executor.interrupt(config, function() end)
+vim.wait(20)
+check(
+	interrupt_args[#interrupt_args - 1] == "--execution-id" and interrupt_args[#interrupt_args] == "7",
+	"timeout recovery interrupts the matching execution"
+)
+config.execution_id = nil
 vim.system = function(_, opts)
 	dir = vim.json.decode(assert(opts.stdin:match('%.arf_stdout_path <%- ("[^"]+")'))):gsub("/stdout.bin$", "")
 	error("cannot spawn")

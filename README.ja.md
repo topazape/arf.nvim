@@ -24,7 +24,7 @@
 
 ## 必要なもの
 
-- **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.0 以降**。
+- **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.1 以降**。
 - 式の自動選択・バッファ全体の実行には **R の Tree-sitter パーサー**。
 - インライン画像には `image` を有効にした **[Snacks](https://github.com/folke/snacks.nvim)**、**ImageMagick**、**Ghostty** や **Kitty** などの対応ターミナル。
 
@@ -83,6 +83,7 @@ plot(x$mpg, x$wt)
 
 `:ArfObjects` で、現在の R セッションのオブジェクトを Snacks.picker から探せます。
 `<CR>` でサマリーを表示し、通常モードの `p` で選んだオブジェクトを出力します。
+自動起動したセッションでは、実行期限を5秒に設定した専用ハンドラーでメタデータを取得します。`pid` で接続する既存セッションでは、従来のRコード評価による取得を使います。
 
 <p align="center">
   <img src="assets/object-picker.png" alt="R オブジェクトの名前・クラス・サイズを一覧表示" width="720">
@@ -201,6 +202,8 @@ require("arf").setup({
 ```
 
 </details>
+
+`eval_timeout_ms` は IPC 応答の待ち時間です。タイムアウト後も R が実行中の場合は、出力の後処理が終わるまで実行状態を保持します。`:ArfInterrupt` でその評価を中断するか、`:ArfStop` で自動起動したセッションを終了できます。
 
 `inline.border` は `"line"`（既定）、`"single"`、`"rounded"`、`"double"`、`"none"` から選べます。囲み枠では、現在のタブで同じバッファを表示している最も狭いウィンドウに合わせて長い行を省略します。保持されている全文は `:ArfOutput` で確認できます。
 

@@ -50,6 +50,16 @@ session.ensure(config, receive)
 session.ensure(config, receive)
 check(#calls == 1, "concurrent startup shares process")
 local first = calls[1]
+check(
+	vim.deep_equal(first.args, {
+		"arf-test",
+		"headless",
+		"--json",
+		"--ipc-expose",
+		require("arf.objects").expose,
+	}),
+	"publish the metadata handler only for owned sessions"
+)
 first.opts.stdout(nil, 'startup noise\n{"pid":999}\n{"pi')
 drain()
 check(#replies == 0, "ignore noise, wrong PID and partial JSON")

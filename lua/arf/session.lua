@@ -29,6 +29,7 @@ function M.ensure(config, callback)
 		table.insert(current.callbacks, callback)
 		return
 	end
+	local args = { config.executable, "headless", "--json", "--ipc-expose", require("arf.objects").expose }
 	local session = { callbacks = { callback }, output = "", stderr = "" }
 	current = session
 	local function fail(err)
@@ -46,7 +47,7 @@ function M.ensure(config, callback)
 	end
 	local ok, process = pcall(
 		vim.system,
-		{ config.executable, "headless", "--json" },
+		args,
 		{
 			cwd = vim.fn.getcwd(),
 			text = true,

@@ -168,23 +168,14 @@ function M.objects()
 	local objects = require("arf.objects")
 	local win, buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
 	local function load(done, valid)
-		evaluate({ objects.code }, function(result)
-			result.cleanup()
-			if result.error or result.truncated then
-				vim.notify("arf: " .. (result.error or "Object list exceeded output.max_bytes"), vim.log.levels.ERROR)
-				return
-			end
-			local ok, items = pcall(objects.decode, result.text)
-			if not ok then
-				return vim.notify("arf: Unable to read object list: " .. tostring(items), vim.log.levels.ERROR)
-			end
-			if valid() then
-				local shown, show_error = pcall(done, items)
-				if not shown then
-					vim.notify("arf: " .. tostring(show_error), vim.log.levels.ERROR)
+		require("arf.execution").request(objects.fetch, {
+			valid = valid,
+			result = function(items)
+				if valid() then
+					done(items)
 				end
-			end
-		end, nil, nil, valid)
+			end,
+		})
 	end
 	load(function(items)
 		picker.open(items, load, function(fn, name)

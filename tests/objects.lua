@@ -1,6 +1,8 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 local objects = require("arf.objects")
 local arf = require("arf")
+-- Borrowed sessions retain the evaluation path without publishing handlers.
+arf.setup({ pid = 123 })
 local callbacks, codes, notices, floats = {}, {}, {}, {}
 local cleaned = 0
 vim.notify = function(message)

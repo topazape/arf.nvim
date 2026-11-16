@@ -5,9 +5,9 @@ local function notify(err, level)
 	vim.notify("arf: " .. tostring(err), level or vim.log.levels.ERROR)
 end
 
-local function release(result)
-	if result then
-		local ok, err = pcall(result.cleanup)
+local function release(request, result)
+	if result and request.handlers.release then
+		local ok, err = pcall(request.handlers.release, result)
 		if not ok then
 			notify(err)
 		end
@@ -28,7 +28,7 @@ local function finish(request, discard)
 end
 
 local function fail(request, err, result)
-	release(result)
+	release(request, result)
 	finish(request, true)
 	notify(err)
 end
@@ -45,6 +45,7 @@ local function options()
 	return {
 		executable = config.executable,
 		pid = config.pid,
+		external = config.pid ~= nil,
 		startup_timeout_ms = config.startup_timeout_ms,
 		eval_timeout_ms = config.eval_timeout_ms,
 		output = output,
@@ -52,13 +53,13 @@ local function options()
 	}
 end
 
-function M.run(codes, handlers)
+local function submit(tasks, handlers)
 	if active then
 		return notify("R is running", vim.log.levels.WARN)
 	end
-	assert(#codes > 0, "arf: evaluation requires at least one expression")
+	assert(#tasks > 0, "arf: request requires at least one task")
 	local request = { options = options(), handlers = handlers, index = 1 }
-	request.external = request.options.pid ~= nil
+	request.external = request.options.external
 	active = request
 	local function valid()
 		return not handlers.valid or handlers.valid()
@@ -77,10 +78,10 @@ function M.run(codes, handlers)
 				return finish(request, true)
 			end
 			local completed = false
-			local cancel = require("arf.executor").eval(codes[request.index], request.options, function(result, failure)
+			local cancel = tasks[request.index](request.options, function(result, failure)
 				completed = true
 				if active ~= request then
-					return release(result)
+					return release(request, result)
 				end
 				request.cancel = nil
 				if failure then
@@ -95,12 +96,7 @@ function M.run(codes, handlers)
 				if active ~= request then
 					return
 				end
-				if
-					request.stop_requested
-					or result.status and result.status ~= "ok"
-					or proceed == false
-					or request.index == #codes
-				then
+				if request.stop_requested or proceed == false or request.index == #tasks then
 					return finish(request)
 				end
 				request.index = request.index + 1
@@ -109,6 +105,15 @@ function M.run(codes, handlers)
 					return fail(request, start_error)
 				end
 				vim.schedule(request.advance)
+			end, function(execution_id)
+				if active == request then
+					request.stop_requested = true
+					request.options.execution_id = execution_id
+					notify(
+						"Response timed out; waiting for R to finish. Use :ArfInterrupt or :ArfStop",
+						vim.log.levels.WARN
+					)
+				end
 			end)
 			if active == request and not completed then
 				request.cancel = cancel
@@ -138,6 +143,33 @@ function M.run(codes, handlers)
 	if not ok then
 		fail(request, err)
 	end
+end
+
+-- A session-bound task need not produce code output or own capture files.
+function M.request(execute, handlers)
+	return submit({ execute }, handlers)
+end
+
+function M.run(codes, handlers)
+	assert(#codes > 0, "arf: evaluation requires at least one expression")
+	local tasks = {}
+	for _, code in ipairs(codes) do
+		tasks[#tasks + 1] = function(options, callback, on_timeout)
+			return require("arf.executor").eval(code, options, callback, on_timeout)
+		end
+	end
+	return submit(
+		tasks,
+		vim.tbl_extend("force", handlers, {
+			release = function(result)
+				result.cleanup()
+			end,
+			result = function(result, index)
+				local proceed = handlers.result(result, index)
+				return proceed ~= false and (not result.status or result.status == "ok")
+			end,
+		})
+	)
 end
 
 function M.interrupt()
