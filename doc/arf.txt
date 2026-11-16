@@ -100,22 +100,30 @@ KEYMAPS                                                         *arf-keymaps*
 
 The plugin does not register R buffer keymaps automatically. Configure keys in
 your lazy.nvim spec or use vim.keymap.set(). <LocalLeader> follows
-vim.g.maplocalleader and defaults to backslash: \fr in the README example. Set
+vim.g.maplocalleader and defaults to backslash: \fr in the example below. Set
 it before the plugin loads to use a different prefix:
 
 >lua
     vim.g.maplocalleader = "," -- ,fr to run
 <
 
-Optional entries for the lazy.nvim keys table:
+The README example uses these entries in the lazy.nvim keys table:
 
 >lua
+    { "<LocalLeader>fr", "<Cmd>ArfRun<CR>", ft = "r", desc = "Run R expression" },
+    { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
     { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
     { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
     { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
+    { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
+    { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
-    { "<LocalLeader>fh", "<Cmd>ArfHelp<CR>", ft = "r", desc = "Show R help" },
+    { "<LocalLeader>fl", "<Cmd>ArfObjects<CR>", ft = "r", desc = "List R objects" },
+    { "<LocalLeader>fh", "<Cmd>ArfHelp<CR>", ft = "r", desc = "Open R help" },
+    { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
 <
+
+For inspect() keymaps such as \ft and \fp, see |arf-inspect|.
 
 ==============================================================================
 EXECUTION                                                     *arf-execution*
@@ -147,8 +155,9 @@ Editing, clearing, or unloading the source buffer while evaluation is pending
 discards that result and stops subsequent expressions without interrupting R.
 
 All buffers share one R session. Automatically started sessions use :pwd at
-the first evaluation; later :cd changes do not affect R. External sessions
-retain their working directory. Neovim exits stop only owned sessions.
+session startup, which can also be triggered by ArfHelp or ArfObjects before
+the first code evaluation. Later :cd changes do not affect R. External
+sessions retain their working directory. Neovim exits stop only owned sessions.
 Evaluation options are captured at request start; setup() changes apply to the
 next request, including when startup is still pending.
 
@@ -193,9 +202,15 @@ Use an ASCII R function name or an exported package::function. Install the
 package before using a qualified name; library() is unnecessary. A function
 already defined in the session can be passed by name, e.g. inspect("my_fn").
 
-For a custom keymap, add this entry to your lazy.nvim keys table:
+For custom keymaps, add these entries to your lazy.nvim keys table:
 
 >lua
+    {
+      "<LocalLeader>ft",
+      function() require("arf").inspect("utils::str") end,
+      ft = "r",
+      desc = "Inspect R object structure",
+    },
     {
       "<LocalLeader>fp",
       function()

@@ -27,6 +27,8 @@
 - **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.1 以降**。
 - 式の自動選択・バッファ全体の実行には **R の Tree-sitter パーサー**。
 - インライン画像には `image` を有効にした **[Snacks](https://github.com/folke/snacks.nvim)**、**ImageMagick**、**Ghostty** や **Kitty** などの対応ターミナル。
+- オブジェクト一覧には **Snacks.picker**。
+- プロットのコピーには、macOS では **osascript**、Linux では **wl-copy**（Wayland）または **xclip**（X11）、Windows では **PowerShell**。
 
 ## インストール
 
@@ -45,6 +47,8 @@ return {
     { "<LocalLeader>fr", "<Cmd>ArfRun<CR>", ft = "r", desc = "Run R expression" },
     { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
     { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
+    { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
+    { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
@@ -78,8 +82,8 @@ plot(x$mpg, x$wt)
 ほかの操作：
 
 - `<LocalLeader>fR` または `:ArfRunAll`：バッファ全体を実行。
-- `:ArfCopyPlot`：最後の保存済みプロットをコピー。
-- `:ArfStop`：自動起動したセッションを終了し、結果を消す。
+- `<LocalLeader>fy` または `:ArfCopyPlot`：最後の保存済みプロットをコピー。
+- `<LocalLeader>fs` または `:ArfStop`：自動起動したセッションを終了し、結果を消す。
 
 ## オブジェクトの検査
 

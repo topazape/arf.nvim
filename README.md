@@ -27,6 +27,8 @@ Powered by [arf](https://github.com/eitsupi/arf).
 - **Neovim 0.12+**, **R**, and **[arf](https://github.com/eitsupi/arf) 0.7.1+** on your PATH.
 - **R Tree-sitter parser** for expression selection and running the whole buffer.
 - For inline plots: **[Snacks](https://github.com/folke/snacks.nvim)** with `image` enabled, **ImageMagick**, and a compatible terminal such as **Ghostty** or **Kitty**.
+- For the object picker: **Snacks.picker**.
+- For copying plots: **osascript** on macOS, **wl-copy** (Wayland) or **xclip** (X11) on Linux, or **PowerShell** on Windows.
 
 ## Installation
 
@@ -45,6 +47,8 @@ return {
     { "<LocalLeader>fr", "<Cmd>ArfRun<CR>", ft = "r", desc = "Run R expression" },
     { "<LocalLeader>fr", ":ArfRun<CR>", mode = "x", ft = "r", desc = "Run selected lines" },
     { "<LocalLeader>fR", "<Cmd>ArfRunAll<CR>", ft = "r", desc = "Run all R expressions" },
+    { "<LocalLeader>fs", "<Cmd>ArfStop<CR>", ft = "r", desc = "Stop R session" },
+    { "<LocalLeader>fy", "<Cmd>ArfCopyPlot<CR>", ft = "r", desc = "Copy latest plot" },
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
@@ -78,8 +82,8 @@ Place the cursor on each line and press `<LocalLeader>fr` in order. The first ru
 To go further:
 
 - `<LocalLeader>fR` or `:ArfRunAll` runs the whole buffer.
-- `:ArfCopyPlot` copies the latest saved plot.
-- `:ArfStop` ends the automatically started session and clears its results.
+- `<LocalLeader>fy` or `:ArfCopyPlot` copies the latest saved plot.
+- `<LocalLeader>fs` or `:ArfStop` ends the automatically started session and clears its results.
 
 ## Inspect objects
 
