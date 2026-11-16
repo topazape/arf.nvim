@@ -19,6 +19,7 @@ Powered by [arf](https://github.com/eitsupi/arf).
 - Keep R objects between runs with an automatically started session.
 - Read saved output, inspect objects, and copy plots.
 - Show `summary()` for the object under the cursor. Use `inspect()` to call `str()` or model diagnostic functions too.
+- Read R help in a float, including while R is running.
 - Keep source files untouched; results live in virtual lines.
 
 ## Requirements
@@ -46,6 +47,7 @@ return {
     { "<LocalLeader>fc", "<Cmd>ArfClear<CR>", ft = "r", desc = "Clear results" },
     { "<LocalLeader>fo", "<Cmd>ArfOutput<CR>", ft = "r", desc = "Open saved output" },
     { "<LocalLeader>fk", "<Cmd>ArfSummary<CR>", ft = "r", desc = "Inspect R object" },
+    { "<LocalLeader>fh", "<Cmd>ArfHelp<CR>", ft = "r", desc = "Open R help" },
     { "<LocalLeader>fi", "<Cmd>ArfInterrupt<CR>", ft = "r", desc = "Interrupt R" },
   },
 }
@@ -122,6 +124,12 @@ return {
 
 The function receives the object as its only argument, and its text output appears in a float. Install the package before using `package::function`; `library()` is unnecessary. You can also pass the name of a function defined in the session. See `:help arf-inspect` for examples with additional arguments.
 
+## Read R help
+
+Place the cursor on a function name and press `<LocalLeader>fh` (`\fh` with the configuration above), or run `:ArfHelp`. Specify a topic with `:ArfHelp stats::lm`. The help page opens as Markdown in a float: scroll normally, search with `/`, and close with `q`. If several packages have a matching topic, choose one from the selection prompt.
+
+Help is read from the R session's installed packages without evaluating R code, so it remains available during a computation. No additional plugin is required. Unlike R's `?`, unqualified topics are not resolved by package attach order; use `package::topic` to select a package. See `:help arf-help` for details.
+
 ## Configuration
 
 Defaults work without configuration. Change only what you need in the lazy.nvim `opts` table:
@@ -157,7 +165,7 @@ require("arf").setup({
     border = "line",          -- "rounded", "single", "double", "line", or "none"
   },
 
-  float_window = {          -- shared by saved output and object inspections
+  float_window = {          -- shared by output, inspections, and R help
     width = "60%",            -- "auto", positive integer, or "1%" to "100%"
     max_height = 30,
   },

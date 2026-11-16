@@ -15,8 +15,13 @@ function M.interrupt()
 	return require("arf.execution").interrupt()
 end
 
+function M.help(topic)
+	return require("arf.help").show(topic)
+end
+
 function M.stop()
 	if require("arf.execution").stop() then
+		require("arf.help").cancel()
 		require("arf.float").close()
 		require("arf.results").clear_all()
 	end

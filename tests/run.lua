@@ -6,6 +6,7 @@ local suites = {
 	"inspect",
 	"objects",
 	"object_handler",
+	"help",
 	"output",
 	"results",
 	"session",
