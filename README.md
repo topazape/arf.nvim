@@ -23,7 +23,7 @@ Powered by [arf](https://github.com/eitsupi/arf).
 
 ## Requirements
 
-- **Neovim 0.12+**, **R**, and **[arf](https://github.com/eitsupi/arf) 0.7.0+** on your PATH.
+- **Neovim 0.12+**, **R**, and **[arf](https://github.com/eitsupi/arf) 0.7.1+** on your PATH.
 - **R Tree-sitter parser** for expression selection and running the whole buffer.
 - For inline plots: **[Snacks](https://github.com/folke/snacks.nvim)** with `image` enabled, **ImageMagick**, and a compatible terminal such as **Ghostty** or **Kitty**.
 
@@ -81,6 +81,7 @@ To go further:
 
 Use `:ArfObjects` to search objects in the current R session with Snacks.picker.
 Press `<CR>` for a summary or `p` in Normal mode to print the selected object.
+Automatically started sessions fetch metadata through a dedicated handler with a five-second execution deadline. Existing sessions selected with `pid` keep the evaluation-based lookup.
 
 <p align="center">
   <img src="assets/object-picker.png" alt="R objects with their names, classes, and dimensions" width="720">

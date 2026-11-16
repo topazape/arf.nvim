@@ -23,7 +23,7 @@
 
 ## 必要なもの
 
-- **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.0 以降**。
+- **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.1 以降**。
 - 式の自動選択・バッファ全体の実行には **R の Tree-sitter パーサー**。
 - インライン画像には `image` を有効にした **[Snacks](https://github.com/folke/snacks.nvim)**、**ImageMagick**、**Ghostty** や **Kitty** などの対応ターミナル。
 
@@ -81,6 +81,7 @@ plot(x$mpg, x$wt)
 
 `:ArfObjects` で、現在の R セッションのオブジェクトを Snacks.picker から探せます。
 `<CR>` でサマリーを表示し、通常モードの `p` で選んだオブジェクトを出力します。
+自動起動したセッションでは、実行期限を5秒に設定した専用ハンドラーでメタデータを取得します。`pid` で接続する既存セッションでは、従来のRコード評価による取得を使います。
 
 <p align="center">
   <img src="assets/object-picker.png" alt="R オブジェクトの名前・クラス・サイズを一覧表示" width="720">
