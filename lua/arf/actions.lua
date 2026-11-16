@@ -1,6 +1,9 @@
 local M = {}
-local function evaluate(codes, result, start, discard, valid)
-	return require("arf.execution").run(codes, { result = result, start = start, discard = discard, valid = valid })
+local function evaluate(codes, result, start, discard, valid, execute)
+	return require("arf.execution").run(
+		codes,
+		{ result = result, start = start, discard = discard, valid = valid, execute = execute }
+	)
 end
 
 local function source_validity(buf)
@@ -174,7 +177,9 @@ function M.objects()
 				vim.notify("arf: " .. (result.error or "Object list exceeded output.max_bytes"), vim.log.levels.ERROR)
 				return
 			end
-			local ok, items = pcall(objects.decode, result.text)
+			local ok, items = pcall(function()
+				return result.items or objects.decode(result.text)
+			end)
 			if not ok then
 				return vim.notify("arf: Unable to read object list: " .. tostring(items), vim.log.levels.ERROR)
 			end
@@ -184,7 +189,7 @@ function M.objects()
 					vim.notify("arf: " .. tostring(show_error), vim.log.levels.ERROR)
 				end
 			end
-		end, nil, nil, valid)
+		end, nil, nil, valid, objects.eval)
 	end
 	load(function(items)
 		picker.open(items, load, function(fn, name)

@@ -45,6 +45,7 @@ local function options()
 	return {
 		executable = config.executable,
 		pid = config.pid,
+		external = config.pid ~= nil,
 		startup_timeout_ms = config.startup_timeout_ms,
 		eval_timeout_ms = config.eval_timeout_ms,
 		output = output,
@@ -58,7 +59,7 @@ function M.run(codes, handlers)
 	end
 	assert(#codes > 0, "arf: evaluation requires at least one expression")
 	local request = { options = options(), handlers = handlers, index = 1 }
-	request.external = request.options.pid ~= nil
+	request.external = request.options.external
 	active = request
 	local function valid()
 		return not handlers.valid or handlers.valid()
@@ -77,7 +78,8 @@ function M.run(codes, handlers)
 				return finish(request, true)
 			end
 			local completed = false
-			local cancel = require("arf.executor").eval(codes[request.index], request.options, function(result, failure)
+			local execute = handlers.execute or require("arf.executor").eval
+			local cancel = execute(codes[request.index], request.options, function(result, failure)
 				completed = true
 				if active ~= request then
 					return release(result)
