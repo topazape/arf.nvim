@@ -25,7 +25,7 @@ CONTENTS                                             *arf* *arf.nvim*
 ==============================================================================
 REQUIREMENTS                                               *arf-requirements*
 
-- Neovim 0.12 or later, R, and arf 0.7.0 or later.
+- Neovim 0.12 or later, R, and arf 0.7.1 or later.
   Install arf from https://github.com/eitsupi/arf and put it on PATH, or set
   executable to its path.
 - An R Tree-sitter parser for automatic expression selection and ArfRunAll.
@@ -158,6 +158,23 @@ or length when available. Dot-prefixed names are omitted.
 - Search matches names; it does not fetch metadata on each keystroke.
 - The list reflects the session when opened or refreshed.
 - Results appear in a float. ArfOutput separately reopens saved code output.
+
+Automatically started sessions expose nvim/objects at startup. Metadata uses
+arf ipc call and native JSON conversion, without the code-output or PNG
+capture wrapper or an R JSON package. It does not enter R history. Active
+bindings are listed without evaluating them; custom class/dimension methods
+may still run R code. Metadata and regular evaluations share the execution
+guard, so they do not run concurrently.
+
+Queue wait and handler execution each have a five-second limit. Execution
+interruption is cooperative: R or native code can take longer to stop.
+ArfInterrupt does not interrupt handlers; ArfStop can terminate an owned
+session. Server capability is checked before using an execution deadline.
+
+Sessions selected with pid are borrowed and keep the evaluation-based lookup;
+no handler registration is attempted. Summary/print actions use normal R
+evaluation for both session types. output.max_bytes also caps the JSON
+metadata response of an automatically started session.
 
 ==============================================================================
 OBJECT INSPECTION                                               *arf-inspect*
