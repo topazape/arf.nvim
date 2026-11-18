@@ -27,7 +27,6 @@
 - **Neovim 0.12+**、**R**、PATH に通した **[arf](https://github.com/eitsupi/arf) 0.7.1 以降**。
 - 式の自動選択・バッファ全体の実行には **R の Tree-sitter パーサー**。
 - インライン画像には `image` を有効にした **[Snacks](https://github.com/folke/snacks.nvim)**、**ImageMagick**、**Ghostty** や **Kitty** などの対応ターミナル。
-- オブジェクト一覧には **Snacks.picker**。
 - プロットのコピーには、macOS では **osascript**、Linux では **wl-copy**（Wayland）または **xclip**（X11）、Windows では **PowerShell**。
 
 ## インストール
@@ -87,13 +86,8 @@ plot(x$mpg, x$wt)
 
 ## オブジェクトの検査
 
-`<LocalLeader>fl`（上の設定例では `\fl`）または `:ArfObjects` で、現在の R セッションのオブジェクトを Snacks.picker から探せます。
-`<CR>` でサマリーを表示し、通常モードの `p` で選んだオブジェクトを出力します。
+`<LocalLeader>fl`（上の設定例では `\fl`）または `:ArfObjects` で、現在の R セッションのオブジェクトを選び、`summary()` または `print()` を実行できます。選択には `vim.ui.select()` を使います。
 自動起動したセッションでは、実行期限を5秒に設定した専用ハンドラーでメタデータを取得します。`pid` で接続する既存セッションでは、従来のRコード評価による取得を使います。
-
-<p align="center">
-  <img src="assets/object-picker.png" alt="R オブジェクトの名前・クラス・サイズを一覧表示" width="720">
-</p>
 
 オブジェクトを作成するコードを実行したあと、その名前にカーソルを置いて `<LocalLeader>fk`（上の設定例では `\fk`）または `:ArfSummary` を使うと、`base::summary()` の結果をフロートに表示します。結果は `q` で閉じます。
 

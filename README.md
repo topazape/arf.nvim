@@ -27,7 +27,6 @@ Powered by [arf](https://github.com/eitsupi/arf).
 - **Neovim 0.12+**, **R**, and **[arf](https://github.com/eitsupi/arf) 0.7.1+** on your PATH.
 - **R Tree-sitter parser** for expression selection and running the whole buffer.
 - For inline plots: **[Snacks](https://github.com/folke/snacks.nvim)** with `image` enabled, **ImageMagick**, and a compatible terminal such as **Ghostty** or **Kitty**.
-- For the object picker: **Snacks.picker**.
 - For copying plots: **osascript** on macOS, **wl-copy** (Wayland) or **xclip** (X11) on Linux, or **PowerShell** on Windows.
 
 ## Installation
@@ -87,13 +86,8 @@ To go further:
 
 ## Inspect objects
 
-Press `<LocalLeader>fl` (`\fl` with the configuration above), or run `:ArfObjects`, to search objects in the current R session with Snacks.picker.
-Press `<CR>` for a summary or `p` in Normal mode to print the selected object.
+Press `<LocalLeader>fl` (`\fl` with the configuration above), or run `:ArfObjects`, to select an object in the current R session, then choose `summary()` or `print()`. The selection interface uses `vim.ui.select()`.
 Automatically started sessions fetch metadata through a dedicated handler with a five-second execution deadline. Existing sessions selected with `pid` keep the evaluation-based lookup.
-
-<p align="center">
-  <img src="assets/object-picker.png" alt="R objects with their names, classes, and dimensions" width="720">
-</p>
 
 After running the code that creates an object, place the cursor on its name and press `<LocalLeader>fk` (`\fk` with the configuration above), or run `:ArfSummary`. This shows the result of `base::summary()` in a float. Press `q` to close it.
 

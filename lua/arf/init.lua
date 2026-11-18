@@ -22,6 +22,7 @@ end
 function M.stop()
 	if require("arf.execution").stop() then
 		require("arf.help").cancel()
+		actions.cancel_objects()
 		require("arf.float").close()
 		require("arf.results").clear_all()
 	end

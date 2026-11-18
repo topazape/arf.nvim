@@ -127,11 +127,9 @@ package.loaded["arf.session"] = {
 	end,
 	stop = function() end,
 }
-package.loaded["snacks.picker"] = {
-	pick = function(opts)
-		picked = opts
-	end,
-}
+vim.ui.select = function(items)
+	picked = { items = items }
+end
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "x <- 1" })
 calls, picked = {}, nil
 arf.objects()
@@ -139,6 +137,9 @@ arf.run(1, 1)
 assert(#calls == 1 and notices[#notices]:find("R is running", 1, true), "native query holds execution guard")
 finish(1, supported)
 finish(2, { value = { { name = "x", class = "numeric", size = "1" } } })
+assert(vim.wait(1000, function()
+	return picked ~= nil
+end))
 assert(picked.items[1].name == "x", "native metadata reaches the existing picker")
 calls, picked = {}, nil
 arf.objects()
@@ -149,5 +150,8 @@ calls = {}
 arf.objects()
 finish(1, supported)
 finish(2, { value = {} })
+assert(vim.wait(1000, function()
+	return picked ~= nil
+end))
 assert(picked and #picked.items == 0, "lookup works again after stopping")
 print("dedicated object handler tests passed")
