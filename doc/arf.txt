@@ -35,13 +35,11 @@ REQUIREMENTS                                               *arf-requirements*
 - Inline plots: snacks.nvim with image enabled, ImageMagick (magick or
   identify), and a terminal supporting Snacks inline images, such as Ghostty
   or Kitty.
-- Object Picker: Snacks.picker.
 - Copying plots: osascript on macOS, wl-copy (Wayland) or xclip (X11) on
   Linux, or PowerShell on Windows.
 
 If you already configure Snacks, add image = { enabled = true } to its
-options. You can omit the dependency if you use neither inline plots nor
-Object Picker.
+options. You can omit the dependency if you do not use inline plots.
 
 ==============================================================================
 COMMANDS                                                       *arf-commands*
@@ -73,7 +71,7 @@ COMMANDS                                                       *arf-commands*
     float. Run the expression creating that object first. See |arf-inspect|.
 
 :ArfObjects                                                  *:ArfObjects*
-    Search and inspect objects in the R session. See |arf-objects|.
+    Select and inspect objects in the R session. See |arf-objects|.
 
 :ArfHelp [topic]                                                *:ArfHelp*
     Show R help for the topic under the cursor or an explicit topic, such as
@@ -164,15 +162,12 @@ next request, including when startup is still pending.
 ==============================================================================
 OBJECT PICKER                                                   *arf-objects*
 
-Use :ArfObjects or require("arf").objects() to fuzzy search names in the
-session's .GlobalEnv with Snacks.picker. Rows show name, class, and dimensions
-or length when available. Dot-prefixed names are omitted.
-
-- Type a name in insert mode; <CR> runs summary(). <Esc> enters normal mode.
-- In normal mode, p runs print(), r refreshes the list, and q closes it.
-- Search matches names; it does not fetch metadata on each keystroke.
-- The list reflects the session when opened or refreshed.
-- Results appear in a float. ArfOutput separately reopens saved code output.
+Use :ArfObjects or require("arf").objects() to select an object from the
+session's .GlobalEnv, then choose summary() or print(). Both selections use
+vim.ui.select(). Rows show name, class, and dimensions or length when
+available. Dot-prefixed names are omitted. Cancel either selection to stop.
+Reopen the list to refresh it. Results appear in a float. ArfOutput separately
+reopens saved code output.
 
 Automatically started sessions expose nvim/objects at startup. Metadata uses
 arf ipc call and native JSON conversion, without the code-output or PNG

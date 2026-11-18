@@ -159,33 +159,50 @@ function M.inspect(fn, opts)
 	return inspect_name(fn, opts)
 end
 
+local objects_generation = 0
+
+function M.cancel_objects()
+	objects_generation = objects_generation + 1
+end
+
 function M.objects()
-	local picker = require("arf.object_picker")
-	local available, err = picker.available()
-	if not available then
-		return vim.notify("arf: " .. err, vim.log.levels.ERROR)
-	end
+	objects_generation = objects_generation + 1
+	local generation = objects_generation
 	local objects = require("arf.objects")
 	local win, buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
-	local function load(done, valid)
-		require("arf.execution").request(objects.fetch, {
-			valid = valid,
-			result = function(items)
-				if valid() then
-					done(items)
-				end
-			end,
-		})
-	end
-	load(function(items)
-		picker.open(items, load, function(fn, name)
-			inspect_name(fn, nil, name)
-		end)
-	end, function()
-		return vim.api.nvim_win_is_valid(win)
+	local function valid()
+		return generation == objects_generation
+			and vim.api.nvim_win_is_valid(win)
 			and vim.api.nvim_get_current_win() == win
 			and vim.api.nvim_win_get_buf(win) == buf
-	end)
+	end
+	require("arf.execution").request(objects.fetch, {
+		valid = valid,
+		result = function(items)
+			-- Release the execution guard before a synchronous select callback can
+			-- start the chosen inspection.
+			vim.schedule(function()
+				if not valid() then
+					return
+				end
+				vim.ui.select(items, {
+					prompt = "R object:",
+					format_item = function(item)
+						return vim.fn.strtrans(item.name) .. "  " .. vim.fn.strtrans(item.class) .. "  " .. item.size
+					end,
+				}, function(item)
+					if not item or not valid() then
+						return
+					end
+					vim.ui.select({ "summary", "print" }, { prompt = "Inspect with:" }, function(action)
+						if action and valid() then
+							inspect_name("base::" .. action, nil, item.name)
+						end
+					end)
+				end)
+			end)
+		end,
+	})
 end
 
 return M

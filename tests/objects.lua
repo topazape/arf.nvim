@@ -27,26 +27,10 @@ package.loaded["arf.float"] = {
 	end,
 	close = function() end,
 }
-local options
-local picker = {
-	opts = {},
-	current = function(self)
-		return self.opts.items[1]
-	end,
-	close = function(self)
-		self.closed = true
-	end,
-	find = function(self)
-		self.refreshed = true
-	end,
-}
-package.loaded["snacks.picker"] = {
-	pick = function(opts)
-		options = opts
-		picker.opts, picker.closed = opts, false
-		return picker
-	end,
-}
+local selections = {}
+vim.ui.select = function(items, opts, callback)
+	selections[#selections + 1] = { items = items, opts = opts, callback = callback }
+end
 local function hex(s)
 	return (s:gsub(".", function(c)
 		return string.format("%02x", c:byte())
@@ -80,61 +64,99 @@ assert(codes[1] == objects.code)
 arf.inspect("summary")
 assert(notices[#notices]:find("R is running", 1, true))
 complete(row(name, "numeric", "1,000"))
-assert(options.title == "Arf Objects" and cleaned == 1)
-assert(options.items[1].name == name)
-assert(options.win.input.keys.p.mode == "n" and options.win.list.keys.r.mode == "n")
-local before = #codes
-options.format(options.items[1])
-assert(#codes == before, "format does not evaluate R")
-options.actions.arf_refresh(picker)
-complete(row("new", "data.frame", "3 × 2"))
-assert(picker.refreshed and picker.opts.items[1].name == "new")
-for _, case in ipairs({
-	{ "confirm", "base", "summary" },
-	{ "arf_print", "base", "print" },
-}) do
-	picker.closed = false
-	local action = options[case[1]] or options.actions[case[1]]
+assert(vim.wait(1000, function()
+	return #selections > 0
+end))
+assert(selections[1].opts.prompt == "R object:" and cleaned == 1)
+assert(selections[1].items[1].name == name)
+assert(selections[1].opts.format_item(selections[1].items[1]):find("numeric", 1, true))
+for _, action in ipairs({ "summary", "print" }) do
+	selections[1].callback(items[1])
+	local choice = selections[#selections]
+	assert(vim.deep_equal(choice.items, { "summary", "print" }))
 	local previous_floats = #floats
-	action(picker, items[1])
-	assert(picker.closed)
+	choice.callback(action)
 	assert(codes[#codes]:find(vim.json.encode(name), 1, true))
-	assert(codes[#codes]:find("inherits = FALSE", 1, true), "selected objects stay in GlobalEnv")
-	assert(codes[#codes]:find('base::getExportedValue("' .. case[2] .. '", "' .. case[3] .. '")', 1, true))
-	complete("result", case[1] == "arf_print" and "object no longer exists" or nil)
-	assert(#floats == previous_floats + 1, "each action opens a new result float")
+	assert(codes[#codes]:find("inherits = FALSE", 1, true))
+	assert(codes[#codes]:find('base::getExportedValue("base", "' .. action .. '")', 1, true))
+	complete("result", action == "print" and "object no longer exists" or nil)
+	assert(#floats == previous_floats + 1)
 end
 assert(vim.inspect(floats[#floats].lines):find("object no longer exists", 1, true))
-picker.closed = false
-options.actions.arf_refresh(picker)
-local old = picker.opts.items
-complete("", "metadata failed")
-assert(picker.opts.items == old and notices[#notices]:find("metadata failed", 1, true))
-options.actions.arf_refresh(picker)
-complete("bad")
-assert(notices[#notices]:find("Unable to read object list", 1, true))
-options.actions.arf_refresh(picker)
-complete("", nil, true)
-assert(notices[#notices]:find("output.max_bytes", 1, true))
-options.actions.arf_refresh(picker)
-picker.closed = true
-complete(row("late"))
-assert(picker.opts.items == old, "closed picker ignores refresh")
-options.actions.arf_refresh(picker)
--- Closed picker fails validity before starting evaluation.
-assert(#callbacks == 0)
+local before = #codes
+selections[1].callback(nil)
+selections[1].callback(items[1])
+selections[#selections].callback(nil)
+assert(#codes == before, "cancellation does not evaluate")
+local other = vim.api.nvim_create_buf(true, false)
+selections[1].callback(items[1])
+local pending = selections[#selections]
+vim.api.nvim_win_set_buf(0, other)
+pending.callback("print")
+assert(#codes == before, "changed buffer invalidates selection")
+vim.api.nvim_win_set_buf(0, 1)
 arf.objects()
 local cb = table.remove(callbacks, 1)
 cb(nil, "IPC failure")
 assert(notices[#notices]:find("IPC failure", 1, true))
-arf.objects()
-complete("")
-assert(#options.items == 0)
-package.loaded["snacks.picker"] = nil
-package.preload["snacks.picker"] = function()
-	error("unavailable")
+for _, case in ipairs({
+	{ "", "metadata failed", false, "metadata failed" },
+	{ "bad", nil, false, "Unable to read object list" },
+	{ "", nil, true, "output.max_bytes" },
+}) do
+	arf.objects()
+	complete(case[1], case[2], case[3])
+	assert(notices[#notices]:find(case[4], 1, true))
 end
-before = #codes
 arf.objects()
-assert(#codes == before and notices[#notices]:find("requires snacks.nvim", 1, true))
-print("object picker unit tests passed")
+local previous = #selections
+complete("")
+assert(vim.wait(1000, function()
+	return #selections > previous
+end))
+assert(#selections[#selections].items == 0)
+
+-- Synchronous implementations, including Neovim's default, must be able to
+-- start inspection after the metadata request releases the execution guard.
+vim.ui.select = function(choices, _, callback)
+	callback(choices[1])
+end
+arf.objects()
+complete(row("sync", "numeric", "1"))
+assert(
+	vim.wait(1000, function()
+		return #callbacks > 0
+	end),
+	"synchronous selection starts inspection"
+)
+assert(codes[#codes]:find('"summary"', 1, true))
+complete("result")
+
+-- Stopping after the first or second prompt invalidates the pending selection.
+vim.ui.select = function(choices, opts, callback)
+	selections[#selections + 1] = { items = choices, opts = opts, callback = callback }
+end
+-- Use an owned session so stop succeeds.
+arf.setup({ pid = false })
+local original_fetch = objects.fetch
+objects.fetch = function(_, callback)
+	callback(items)
+end
+for _, stage in ipairs({ 1, 2 }) do
+	local count = #selections
+	arf.objects()
+	assert(vim.wait(1000, function()
+		return #selections > count
+	end))
+	local pending_selection = selections[#selections]
+	if stage == 2 then
+		pending_selection.callback(items[1])
+		pending_selection = selections[#selections]
+	end
+	arf.stop()
+	local old_codes, old_selections = #codes, #selections
+	pending_selection.callback(stage == 1 and items[1] or "print")
+	assert(#codes == old_codes and #selections == old_selections, "stop invalidates selection")
+end
+objects.fetch = original_fetch
+print("object selection unit tests passed")
