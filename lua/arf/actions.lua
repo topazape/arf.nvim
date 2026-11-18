@@ -185,10 +185,29 @@ function M.objects()
 				if not valid() then
 					return
 				end
+				local name_width = 0
+				for _, item in ipairs(items) do
+					name_width = math.max(name_width, vim.fn.strdisplaywidth(vim.fn.strtrans(item.name)))
+				end
 				vim.ui.select(items, {
 					prompt = "R object:",
 					format_item = function(item)
-						return vim.fn.strtrans(item.name) .. "  " .. vim.fn.strtrans(item.class) .. "  " .. item.size
+						local name = vim.fn.strtrans(item.name)
+						local metadata = {}
+						if item.class ~= "" then
+							metadata[#metadata + 1] = vim.fn.strtrans(item.class)
+						end
+						if item.size ~= "" then
+							metadata[#metadata + 1] = item.size
+						end
+						if #metadata == 0 then
+							return name
+						end
+						return name
+							.. string.rep(" ", name_width - vim.fn.strdisplaywidth(name) + 2)
+							.. "("
+							.. table.concat(metadata, " · ")
+							.. ")"
 					end,
 				}, function(item)
 					if not item or not valid() then
