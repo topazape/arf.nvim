@@ -63,13 +63,21 @@ arf.objects()
 assert(codes[1] == objects.code)
 arf.inspect("summary")
 assert(notices[#notices]:find("R is running", 1, true))
-complete(row(name, "numeric", "1,000"))
+complete(row(name, "numeric", "1,000") .. row("日本", "data.frame", "12 × 8") .. row("x", "", ""))
 assert(vim.wait(1000, function()
 	return #selections > 0
 end))
 assert(selections[1].opts.prompt == "R object:" and cleaned == 1)
 assert(selections[1].items[1].name == name)
-assert(selections[1].opts.format_item(selections[1].items[1]):find("numeric", 1, true))
+local format = selections[1].opts.format_item
+local first = format(selections[1].items[1])
+local second = format(selections[1].items[2])
+assert(first:find("(numeric · 1,000)", 1, true))
+assert(second:find("(data.frame · 12 × 8)", 1, true))
+assert(
+	vim.fn.strdisplaywidth(first:match("^(.*)%(numeric")) == vim.fn.strdisplaywidth(second:match("^(.*)%(data.frame"))
+)
+assert(format(selections[1].items[3]) == "x")
 for _, action in ipairs({ "summary", "print" }) do
 	selections[1].callback(items[1])
 	local choice = selections[#selections]
