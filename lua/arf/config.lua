@@ -3,6 +3,7 @@ local current = {
 	executable = "arf",
 	startup_timeout_ms = 10000,
 	eval_timeout_ms = 300000,
+	execution_timeout_ms = false,
 	output = { max_bytes = 1048576, tibble = { max_rows = "inherit", width = "auto" } },
 	inline = { max_lines = 20, border = "line" },
 	float_window = { width = "60%", max_height = 30 },
@@ -77,6 +78,7 @@ local function validate(config)
 	end
 	positive(config.startup_timeout_ms, "startup_timeout_ms")
 	positive(config.eval_timeout_ms, "eval_timeout_ms")
+	expect(config.execution_timeout_ms == false or integer(config.execution_timeout_ms) and config.execution_timeout_ms >= 1 and config.execution_timeout_ms <= 300000, "execution_timeout_ms", "false or an integer from 1 to 300000")
 	positive(config.output.max_bytes, "output.max_bytes")
 	positive(config.inline.max_lines, "inline.max_lines")
 	positive(config.float_window.max_height, "float_window.max_height")

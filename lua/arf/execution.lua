@@ -48,6 +48,7 @@ local function options()
 		external = config.pid ~= nil,
 		startup_timeout_ms = config.startup_timeout_ms,
 		eval_timeout_ms = config.eval_timeout_ms,
+		execution_timeout_ms = config.execution_timeout_ms,
 		output = output,
 		image = { render = vim.deepcopy(config.image.render) },
 	}

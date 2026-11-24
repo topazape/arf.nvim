@@ -4,7 +4,7 @@ local function string_field(reply, key)
 	return type(reply[key]) == "string" and reply[key] or ""
 end
 
-function M.eval(source, config, callback, on_timeout)
+local function eval(source, config, callback, on_timeout)
 	local dir = vim.fn.tempname()
 	vim.fn.mkdir(dir, "p", 448)
 	local function cleanup()
@@ -18,6 +18,9 @@ function M.eval(source, config, callback, on_timeout)
 	local args = { config.executable, "ipc", "eval", "--visible", "--timeout", tostring(config.eval_timeout_ms) }
 	if config.pid then
 		vim.list_extend(args, { "--pid", tostring(config.pid) })
+	end
+	if config.execution_timeout_ms then
+		vim.list_extend(args, { "--execution-timeout", tostring(config.execution_timeout_ms) })
 	end
 	-- stdin avoids command-line size limits and shell interpretation.
 	local cancelled, completed = false, false
@@ -107,6 +110,9 @@ function M.eval(source, config, callback, on_timeout)
 					error("Invalid evaluation status in arf response", 0)
 				end
 				local err = status ~= "ok" and (type(reply.error) == "string" and reply.error or errors[status]) or nil
+				if status == "interrupted" and reply.interrupt_reason == "execution_timeout" then
+					err = "R evaluation interrupted: execution timeout"
+				end
 				local text, chunks = output.decode(
 					string_field(reply, "stdout"),
 					string_field(reply, "stderr"),
@@ -151,6 +157,31 @@ function M.eval(source, config, callback, on_timeout)
 		end
 	end
 end
+function M.eval(source, config, callback, on_timeout)
+	if not config.execution_timeout_ms then
+		return eval(source, config, callback, on_timeout)
+	end
+	local cancelled, cancel_eval = false, nil
+	local ok, process = pcall(vim.system, { config.executable, "ipc", "session", "--pid", tostring(config.pid) },
+		{ text = true }, vim.schedule_wrap(function(reply)
+			if cancelled then return end
+			local decoded, info = pcall(vim.json.decode, reply.stdout or "")
+			if reply.code ~= 0 or not decoded or type(info) ~= "table" or type(info.capabilities) ~= "table"
+				or not vim.tbl_contains(info.capabilities, "eval_execution_timeout") then
+				return callback(nil, "Execution timeout requires a session supporting eval_execution_timeout (arf 0.7.2 or later)")
+			end
+			cancel_eval = eval(source, config, callback, on_timeout)
+		end))
+	if not ok then
+		callback(nil, tostring(process))
+		return
+	end
+	return function()
+		cancelled = true
+		if cancel_eval then cancel_eval() else process:kill(15) end
+	end
+end
+
 function M.interrupt(config, callback)
 	local args = { config.executable, "ipc", "interrupt", "--pid", tostring(config.pid) }
 	if config.execution_id then

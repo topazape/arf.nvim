@@ -150,6 +150,7 @@ require("arf").setup({
   executable = "arf",
   pid = nil,                -- 省略: 自動起動、数値: 外部セッション、false: 自動起動に戻す
   startup_timeout_ms = 10000, -- 10秒
+  execution_timeout_ms = false, -- optional execution deadline in milliseconds
   eval_timeout_ms = 300000, -- 1回の評価につき5分
 
   output = {
@@ -216,3 +217,5 @@ require("arf").setup({
 ## ライセンス
 
 [MIT ライセンス](LICENSE) © 2026 topazape.
+
+`execution_timeout_ms` の既定値は `false` です。1〜300000 の整数を設定すると実行期限を指定します（arf 0.7.2 以降）。中断は協調的なため停止は保証されず、R が割り込みを捕捉して正常終了した場合は成功として扱います。`eval_timeout_ms` は応答待ち時間であり、実行期限より先に切れることがあるため、実行と出力処理に十分な時間を設定してください。
