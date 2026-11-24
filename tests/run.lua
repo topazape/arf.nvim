@@ -7,6 +7,7 @@ local suites = {
 	"objects",
 	"object_handler",
 	"help",
+	"help_navigation",
 	"output",
 	"results",
 	"session",
