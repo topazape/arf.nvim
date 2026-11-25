@@ -266,8 +266,8 @@ attached with library().
 
 Unqualified topics search installed packages, rather than following R's ?
 package attach order. If several topics match, vim.ui.select() offers a
-choice. Use package::topic to select a package explicitly. Links within a help
-page are displayed as Markdown; following them is not supported.
+choice. Use package::topic to select a package explicitly. Follow x-r-help
+links with <CR>; other Markdown links are not handled by arf.nvim.
 
 arf caches its library paths at session startup. Packages newly installed into
 an existing library can be found, but changes to .libPaths() require
@@ -349,6 +349,11 @@ SESSION                                                         *arf-session*
   return to automatic startup; omitting pid preserves the current setting.
 - startup_timeout_ms: startup wait time. Failed or timed-out startup is retried
   on the next evaluation.
+- execution_timeout_ms: false (default) disables the execution deadline. Set
+  an integer from 1 to 300000 milliseconds to request a cooperative interrupt
+  (requires arf 0.7.2 or later). R may continue or catch the interrupt and
+  complete successfully. Allow enough eval_timeout_ms for execution and
+  output processing; the response wait can expire before the deadline.
 - eval_timeout_ms: IPC response wait time for each evaluation, not for the
   entire ArfRunAll sequence. A timeout alone does not stop R computation.
   Running evaluations retain their capture files and execution guard until R
@@ -477,6 +482,7 @@ Commands and custom keymaps can use the same Lua API:
     arf.objects()         -- Pick a global R object to inspect
     arf.help()            -- Show R help for the topic under the cursor
     arf.help("stats::lm")  -- Show R help for an explicit topic
+    arf.help_search(query) -- Search R help topics; prompt when query is omitted
     arf.output()          -- Show saved output at the cursor without evaluating R again
     arf.copy_plot()       -- Copy the most recent plot image to the clipboard
     arf.interrupt()       -- Interrupt evaluation and stop subsequent expressions; keep R objects
@@ -681,8 +687,3 @@ Other workflows may be better served by:
   https://github.com/quarto-dev/quarto-nvim
 
 vim:tw=78:ts=8:noet:ft=help:norl:
-
-execution_timeout_ms defaults to false. Set it to 1–300000 to request a
-cooperative execution interrupt (arf 0.7.2 or later). R may continue or catch
-the interrupt and complete normally. eval_timeout_ms limits response waiting
-and may expire first; allow time for execution and output processing.

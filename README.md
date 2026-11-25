@@ -204,6 +204,8 @@ require("arf").setup({
 
 </details>
 
+`execution_timeout_ms` defaults to `false`; set it to an integer from 1 to 300000 to request an execution deadline (arf 0.7.2 or later). The interrupt is cooperative and may not stop R. An evaluation that catches the interrupt and completes is successful. `eval_timeout_ms` limits the response wait and can expire first, so allow enough time for execution and output processing.
+
 `eval_timeout_ms` limits the IPC response wait. If R is still running after a timeout, arf.nvim keeps the session busy until capture cleanup finishes. Use `:ArfInterrupt` to interrupt that evaluation, or `:ArfStop` to terminate an automatically started session.
 
 `inline.border` accepts `"line"` (default), `"single"`, `"rounded"`, `"double"`, or `"none"`. Enclosed previews clip long lines to fit the narrowest window showing the buffer in the current tab. Open `:ArfOutput` to read the full retained text.
@@ -217,5 +219,3 @@ Built with AI-assisted “vibe coding” for my own R workflow. I’m keeping th
 ## License
 
 [MIT](LICENSE) © 2026 topazape.
-
-`execution_timeout_ms` defaults to `false`; set it to an integer from 1 to 300000 to request an execution deadline (arf 0.7.2 or later). The interrupt is cooperative and may not stop R. An evaluation that catches the interrupt and completes is successful. `eval_timeout_ms` limits the response wait and can expire first, so allow enough time for execution and output processing.
