@@ -246,7 +246,17 @@ R HELP                                                            *arf-help*
 
 Use :ArfHelp or require("arf").help() to show the help topic under the cursor.
 Use :ArfHelpSearch or require("arf").help_search(query) to search. In the help
-float, <CR> follows an x-r-help link and <BS> returns to the previous page.
+float, <C-]> follows an x-r-help link and <C-t> returns to the previous page.
+Customize these buffer-local mappings with help.keymaps.follow and
+help.keymaps.back; each accepts a key sequence or false to disable it.
+Changes apply to the next help lookup. For example, to use Enter/Backspace:
+
+>lua
+    require("arf").setup({
+      help = { keymaps = { follow = "<CR>", back = "<BS>" } },
+    })
+<
+
 Pass a topic explicitly to look up a qualified name or an operator:
 
 >vim
@@ -267,7 +277,7 @@ attached with library().
 Unqualified topics search installed packages, rather than following R's ?
 package attach order. If several topics match, vim.ui.select() offers a
 choice. Use package::topic to select a package explicitly. Follow x-r-help
-links with <CR>; other Markdown links are not handled by arf.nvim.
+links with <C-]>; other Markdown links are not handled by arf.nvim.
 
 arf caches its library paths at session startup. Packages newly installed into
 an existing library can be found, but changes to .libPaths() require
@@ -305,6 +315,10 @@ calls to setup() merge the supplied options into the current configuration.
       float_window = {          -- shared by output, inspections, and R help
         width = "60%",            -- "auto", positive integer, or "1%" to "100%"
         max_height = 30,
+      },
+
+      help = {
+        keymaps = { follow = "<C-]>", back = "<C-t>" },
       },
 
       image = {

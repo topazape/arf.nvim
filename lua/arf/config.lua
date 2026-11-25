@@ -7,6 +7,7 @@ local current = {
 	output = { max_bytes = 1048576, tibble = { max_rows = "inherit", width = "auto" } },
 	inline = { max_lines = 20, border = "line" },
 	float_window = { width = "60%", max_height = 30 },
+	help = { keymaps = { follow = "<C-]>", back = "<C-t>" } },
 	image = {
 		render = { width_px = 1200, height_px = 800, dpi = 180 },
 		display = { max_width = 100, max_height = 30 },
@@ -78,10 +79,25 @@ local function validate(config)
 	end
 	positive(config.startup_timeout_ms, "startup_timeout_ms")
 	positive(config.eval_timeout_ms, "eval_timeout_ms")
-	expect(config.execution_timeout_ms == false or integer(config.execution_timeout_ms) and config.execution_timeout_ms >= 1 and config.execution_timeout_ms <= 300000, "execution_timeout_ms", "false or an integer from 1 to 300000")
+	expect(
+		config.execution_timeout_ms == false
+			or integer(config.execution_timeout_ms)
+				and config.execution_timeout_ms >= 1
+				and config.execution_timeout_ms <= 300000,
+		"execution_timeout_ms",
+		"false or an integer from 1 to 300000"
+	)
 	positive(config.output.max_bytes, "output.max_bytes")
 	positive(config.inline.max_lines, "inline.max_lines")
 	positive(config.float_window.max_height, "float_window.max_height")
+	for _, action in ipairs({ "follow", "back" }) do
+		local key = config.help.keymaps[action]
+		expect(
+			key == false or type(key) == "string" and key ~= "" and not key:find("[%c]"),
+			"help.keymaps." .. action,
+			"false or a non-empty key sequence without control characters"
+		)
+	end
 	for _, key in ipairs({ "width_px", "height_px", "dpi" }) do
 		positive(config.image.render[key], "image.render." .. key)
 	end
