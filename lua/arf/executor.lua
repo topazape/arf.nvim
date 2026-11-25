@@ -157,28 +157,65 @@ local function eval(source, config, callback, on_timeout)
 		end
 	end
 end
-function M.eval(source, config, callback, on_timeout)
-	if not config.execution_timeout_ms then
+function M.eval(source, config, callback, on_timeout, before_eval)
+	local function start()
+		if before_eval then
+			local ok, proceed = pcall(before_eval)
+			if not ok then
+				return callback(nil, tostring(proceed))
+			end
+			if not proceed then
+				return
+			end
+		end
 		return eval(source, config, callback, on_timeout)
 	end
+	if not config.execution_timeout_ms then
+		return start()
+	end
 	local cancelled, cancel_eval = false, nil
-	local ok, process = pcall(vim.system, { config.executable, "ipc", "session", "--pid", tostring(config.pid) },
-		{ text = true }, vim.schedule_wrap(function(reply)
-			if cancelled then return end
-			local decoded, info = pcall(vim.json.decode, reply.stdout or "")
-			if reply.code ~= 0 or not decoded or type(info) ~= "table" or type(info.capabilities) ~= "table"
-				or not vim.tbl_contains(info.capabilities, "eval_execution_timeout") then
-				return callback(nil, "Execution timeout requires a session supporting eval_execution_timeout (arf 0.7.2 or later)")
+	local ok, process = pcall(
+		vim.system,
+		{ config.executable, "ipc", "session", "--pid", tostring(config.pid) },
+		{ text = true },
+		vim.schedule_wrap(function(reply)
+			if cancelled then
+				return
 			end
-			cancel_eval = eval(source, config, callback, on_timeout)
-		end))
+			if reply.code ~= 0 then
+				local stderr = reply.stderr or ""
+				return callback(
+					nil,
+					stderr ~= "" and stderr or "arf session lookup failed (" .. tostring(reply.code) .. ")"
+				)
+			end
+			local decoded, info = pcall(vim.json.decode, reply.stdout or "")
+			if not decoded or type(info) ~= "table" then
+				return callback(nil, "Unable to read the session response from arf")
+			end
+			if info.capabilities ~= nil and not vim.islist(info.capabilities) then
+				return callback(nil, "Invalid session capabilities in arf response")
+			end
+			if not vim.tbl_contains(info.capabilities or {}, "eval_execution_timeout") then
+				return callback(
+					nil,
+					"Execution timeout requires a session supporting eval_execution_timeout (arf 0.7.2 or later)"
+				)
+			end
+			cancel_eval = start()
+		end)
+	)
 	if not ok then
 		callback(nil, tostring(process))
 		return
 	end
 	return function()
 		cancelled = true
-		if cancel_eval then cancel_eval() else process:kill(15) end
+		if cancel_eval then
+			cancel_eval()
+		else
+			process:kill(15)
+		end
 	end
 end
 

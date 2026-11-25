@@ -115,6 +115,15 @@ local function submit(tasks, handlers)
 						vim.log.levels.WARN
 					)
 				end
+			end, function()
+				if active ~= request then
+					return false
+				end
+				if request.stop_requested or not valid() then
+					finish(request, true)
+					return false
+				end
+				return true
 			end)
 			if active == request and not completed then
 				request.cancel = cancel
@@ -155,8 +164,8 @@ function M.run(codes, handlers)
 	assert(#codes > 0, "arf: evaluation requires at least one expression")
 	local tasks = {}
 	for _, code in ipairs(codes) do
-		tasks[#tasks + 1] = function(options, callback, on_timeout)
-			return require("arf.executor").eval(code, options, callback, on_timeout)
+		tasks[#tasks + 1] = function(options, callback, on_timeout, before_eval)
+			return require("arf.executor").eval(code, options, callback, on_timeout, before_eval)
 		end
 	end
 	return submit(
