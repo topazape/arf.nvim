@@ -29,6 +29,10 @@ vim.api.nvim_create_user_command("ArfHelp", function(opts)
 	require("arf").help(opts.args ~= "" and opts.args or nil)
 end, { nargs = "?", desc = "Show R help for the topic under the cursor or a specified topic" })
 
+vim.api.nvim_create_user_command("ArfHelpSearch", function(opts)
+	require("arf").help_search(opts.args ~= "" and opts.args or nil)
+end, { nargs = "?", desc = "Search R help topics" })
+
 vim.api.nvim_create_user_command("ArfStop", function()
 	require("arf").stop()
 end, { desc = "Stop the owned arf session and clear all results" })

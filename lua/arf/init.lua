@@ -19,6 +19,10 @@ function M.help(topic)
 	return require("arf.help").show(topic)
 end
 
+function M.help_search(query)
+	return require("arf.help").search(query)
+end
+
 function M.stop()
 	if require("arf.execution").stop() then
 		require("arf.help").cancel()

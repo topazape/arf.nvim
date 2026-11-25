@@ -73,6 +73,9 @@ COMMANDS                                                       *arf-commands*
 :ArfObjects                                                  *:ArfObjects*
     Select and inspect objects in the R session. See |arf-objects|.
 
+:ArfHelpSearch [query]                                     *:ArfHelpSearch*
+    Search R help topics. Prompts when query is omitted.
+
 :ArfHelp [topic]                                                *:ArfHelp*
     Show R help for the topic under the cursor or an explicit topic, such as
     :ArfHelp stats::lm. See |arf-help|.
@@ -242,6 +245,8 @@ arguments:
 R HELP                                                            *arf-help*
 
 Use :ArfHelp or require("arf").help() to show the help topic under the cursor.
+Use :ArfHelpSearch or require("arf").help_search(query) to search. In the help
+float, <CR> follows an x-r-help link and <BS> returns to the previous page.
 Pass a topic explicitly to look up a qualified name or an operator:
 
 >vim

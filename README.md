@@ -126,7 +126,7 @@ The function receives the object as its only argument, and its text output appea
 
 ## Read R help
 
-Place the cursor on a function name and press `<LocalLeader>fh` (`\fh` with the configuration above), or run `:ArfHelp`. Specify a topic with `:ArfHelp stats::lm`. The help page opens as Markdown in a float: scroll normally, search with `/`, and close with `q`. If several packages have a matching topic, choose one from the selection prompt.
+Place the cursor on a function name and press `<LocalLeader>fh` (`\fh` with the configuration above), or run `:ArfHelp`. Specify a topic with `:ArfHelp stats::lm`. The help page opens as Markdown in a float: scroll normally, search with `/`, and close with `q`. Press `<CR>` on an `x-r-help:` link to follow it and `<BS>` to go back. Use `:ArfHelpSearch [query]` to search topics; without a query it prompts for one. If several packages have a matching topic, choose one from the selection prompt.
 
 Help is read from the R session's installed packages without evaluating R code, so it remains available during a computation. No additional plugin is required. Unlike R's `?`, unqualified topics are not resolved by package attach order; use `package::topic` to select a package. See `:help arf-help` for details.
 

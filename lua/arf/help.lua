@@ -88,16 +88,16 @@ function M.cancel()
 	generation = generation + 1
 end
 
-function M.show(topic)
+function M.show(topic, search)
 	M.cancel()
 	local request = generation
-	if topic == nil then
+	if topic == nil and not search then
 		topic = cursor_topic()
 	end
 	if not nonempty(topic) or not topic:find("%S") then
 		return vim.notify("arf: Place the cursor on an R topic or provide :ArfHelp {topic}", vim.log.levels.WARN)
 	end
-	local initial = query(vim.trim(topic))
+	local initial = search and nil or query(vim.trim(topic))
 	local config = require("arf.config").get()
 	local options = {
 		executable = config.executable,
@@ -111,7 +111,11 @@ function M.show(topic)
 	})
 	local win = vim.api.nvim_get_current_win()
 	local tick = vim.api.nvim_buf_get_changedtick(float_options.owner)
+	local help_win, history, page, serial = nil, {}, nil, 0
 	local function valid()
+		if help_win then
+			return request == generation and vim.api.nvim_win_is_valid(help_win)
+		end
 		return request == generation
 			and vim.api.nvim_win_is_valid(win)
 			and vim.api.nvim_get_current_win() == win
@@ -128,7 +132,12 @@ function M.show(topic)
 		if not valid() then
 			return
 		end
+		serial = serial + 1
+		local sequence = serial
 		local args = { options.executable, "ipc", "r-help", "show", "--pid", tostring(pid) }
+		if selection.current_package then
+			vim.list_extend(args, { "--current-package", selection.current_package })
+		end
 		if selection.package then
 			vim.list_extend(args, { "--package", selection.package })
 		end
@@ -142,7 +151,7 @@ function M.show(topic)
 			args,
 			{ text = true },
 			vim.schedule_wrap(function(process)
-				if not valid() then
+				if not valid() or sequence ~= serial then
 					return
 				end
 				local handled, failure = pcall(function()
@@ -161,7 +170,60 @@ function M.show(topic)
 						for _, line in ipairs(vim.split(reply.content, "\n", { plain = true })) do
 							lines[#lines + 1] = { { line } }
 						end
-						require("arf.float").open(reply.package .. "::" .. reply.topic, lines, float_options)
+						if page and help_win and vim.api.nvim_win_is_valid(help_win) then
+							page.cursor = vim.api.nvim_win_get_cursor(help_win)
+							table.insert(history, page)
+						end
+						page = { reply = reply, lines = lines }
+						local function render(item)
+							help_win = require("arf.float").open(
+								item.reply.package .. "::" .. item.reply.topic,
+								item.lines,
+								float_options
+							)
+							if not help_win then
+								return
+							end
+							local buf = vim.api.nvim_win_get_buf(help_win)
+							if item.cursor then
+								vim.api.nvim_win_set_cursor(help_win, item.cursor)
+							end
+							vim.keymap.set("n", "<BS>", function()
+								serial = serial + 1
+								local previous = table.remove(history)
+								if previous then
+									page = previous
+									render(previous)
+								end
+							end, { buffer = buf, silent = true })
+							vim.keymap.set("n", "<CR>", function()
+								local line = vim.api.nvim_get_current_line()
+								local col = vim.api.nvim_win_get_cursor(help_win)[2] + 1
+								local pos = 1
+								while true do
+									local a, b, target = line:find("%b[]%((x%-r%-help:[^%)]+)%)", pos)
+									if not a then
+										break
+									end
+									if col >= a and col <= b then
+										local pkg, topic = target:match("^x%-r%-help:([^/]*)/(.+)$")
+										if topic then
+											fetch(
+												{
+													topic = topic,
+													package = pkg ~= "" and pkg or nil,
+													current_package = pkg == "" and item.reply.package or nil,
+												},
+												pid
+											)
+										end
+										break
+									end
+									pos = b + 1
+								end
+							end, { buffer = buf, silent = true })
+						end
+						render(page)
 					elseif reply.kind == "candidates" then
 						if
 							type(reply.candidates) ~= "table"
@@ -184,7 +246,7 @@ function M.show(topic)
 									.. (item.title and " — " .. item.title or "")
 							end,
 						}, function(item)
-							if item then
+							if item and valid() and sequence == serial then
 								fetch(item, pid)
 							end
 						end)
@@ -206,11 +268,70 @@ function M.show(topic)
 		if failure then
 			return fail(failure)
 		end
-		fetch(initial, pid)
+		if not search then
+			return fetch(initial, pid)
+		end
+		local args = { options.executable, "ipc", "r-help", "search", "--pid", tostring(pid), "--query", topic }
+		local started, failure = pcall(
+			vim.system,
+			args,
+			{ text = true },
+			vim.schedule_wrap(function(process)
+				if not valid() then
+					return
+				end
+				local ok, reply = pcall(vim.json.decode, process.stdout or "")
+				if process.code ~= 0 then
+					return fail(process_error(process))
+				end
+				if
+					not ok
+					or type(reply) ~= "table"
+					or type(reply.topics) ~= "table"
+					or not vim.islist(reply.topics)
+				then
+					return fail("Invalid help search response")
+				end
+				for _, item in ipairs(reply.topics) do
+					if not candidate(item) then
+						return fail("Invalid help search result")
+					end
+				end
+				if #reply.topics == 0 then
+					return vim.notify("arf: No help topics found", vim.log.levels.INFO)
+				end
+				vim.ui.select(reply.topics, {
+					prompt = "R help search:",
+					format_item = function(item)
+						return item.package .. "::" .. item.topic .. (item.title and " — " .. item.title or "")
+					end,
+				}, function(item)
+					if item and valid() then
+						fetch(item, pid)
+					end
+				end)
+			end)
+		)
+		if not started then
+			fail(failure)
+		end
 	end)
 	if not ok then
 		fail(err)
 	end
+end
+
+function M.search(query_text)
+	if query_text and query_text ~= "" then
+		return M.show(query_text, true)
+	end
+	M.cancel()
+	local request = generation
+	vim.ui.input({ prompt = "R help search: " }, function(value)
+		if request == generation and value and value:find("%S") then
+			M.show(value, true)
+		end
+	end)
 end
 
 return M
