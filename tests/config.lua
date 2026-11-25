@@ -28,6 +28,17 @@ local function setting(path, value)
 	node[keys[#keys]] = value
 	return opts
 end
+assert(defaults.help.keymaps.follow == "<C-]>" and defaults.help.keymaps.back == "<C-t>")
+arf.setup({ help = { keymaps = { follow = "<CR>" } } })
+assert(arf.config.help.keymaps.back == "<C-t>", "partial mappings preserve the other default")
+for _, action in ipairs({ "follow", "back" }) do
+	for _, value in ipairs({ "", true, 1, {}, "bad\nkey" }) do
+		reject(setting("help.keymaps." .. action, value), "help.keymaps." .. action)
+	end
+	arf.setup(setting("help.keymaps." .. action, false))
+	assert(arf.config.help.keymaps[action] == false)
+end
+arf.setup({ help = defaults.help })
 for _, path in ipairs({
 	"pid",
 	"startup_timeout_ms",

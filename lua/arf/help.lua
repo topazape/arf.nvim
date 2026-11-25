@@ -99,6 +99,7 @@ function M.show(topic, search)
 	end
 	local initial = search and nil or query(vim.trim(topic))
 	local config = require("arf.config").get()
+	local keymaps = vim.deepcopy(config.help.keymaps)
 	local options = {
 		executable = config.executable,
 		pid = config.pid,
@@ -185,18 +186,27 @@ function M.show(topic, search)
 								return
 							end
 							local buf = vim.api.nvim_win_get_buf(help_win)
+							local function map(action, callback)
+								if keymaps[action] then
+									vim.keymap.set("n", keymaps[action], callback, {
+										buffer = buf,
+										silent = true,
+										desc = action == "follow" and "Follow R help link" or "Previous R help page",
+									})
+								end
+							end
 							if item.cursor then
 								vim.api.nvim_win_set_cursor(help_win, item.cursor)
 							end
-							vim.keymap.set("n", "<BS>", function()
+							map("back", function()
 								serial = serial + 1
 								local previous = table.remove(history)
 								if previous then
 									page = previous
 									render(previous)
 								end
-							end, { buffer = buf, silent = true })
-							vim.keymap.set("n", "<CR>", function()
+							end)
+							map("follow", function()
 								local line = vim.api.nvim_get_current_line()
 								local col = vim.api.nvim_win_get_cursor(help_win)[2] + 1
 								local pos = 1
@@ -208,20 +218,17 @@ function M.show(topic, search)
 									if col >= a and col <= b then
 										local pkg, topic = target:match("^x%-r%-help:([^/]*)/(.+)$")
 										if topic then
-											fetch(
-												{
-													topic = topic,
-													package = pkg ~= "" and pkg or nil,
-													current_package = pkg == "" and item.reply.package or nil,
-												},
-												pid
-											)
+											fetch({
+												topic = topic,
+												package = pkg ~= "" and pkg or nil,
+												current_package = pkg == "" and item.reply.package or nil,
+											}, pid)
 										end
 										break
 									end
 									pos = b + 1
 								end
-							end, { buffer = buf, silent = true })
+							end)
 						end
 						render(page)
 					elseif reply.kind == "candidates" then
