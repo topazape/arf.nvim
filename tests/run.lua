@@ -12,6 +12,7 @@ local suites = {
 	"results",
 	"session",
 	"executor",
+	"eval_deadline",
 	"r_code",
 	"expression",
 	"display",

@@ -286,6 +286,7 @@ calls to setup() merge the supplied options into the current configuration.
       executable = "arf",
       pid = nil,                -- omitted: auto-start; number: external; false: reset
       startup_timeout_ms = 10000, -- 10 seconds
+      execution_timeout_ms = false, -- optional execution deadline in milliseconds
       eval_timeout_ms = 300000, -- 5 minutes per evaluation
 
       output = {
@@ -680,3 +681,8 @@ Other workflows may be better served by:
   https://github.com/quarto-dev/quarto-nvim
 
 vim:tw=78:ts=8:noet:ft=help:norl:
+
+execution_timeout_ms defaults to false. Set it to 1–300000 to request a
+cooperative execution interrupt (arf 0.7.2 or later). R may continue or catch
+the interrupt and complete normally. eval_timeout_ms limits response waiting
+and may expire first; allow time for execution and output processing.

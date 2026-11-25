@@ -125,3 +125,11 @@ assert(arf.config.pid == 123, "omitting pid preserves the external session")
 arf.setup({ pid = false })
 assert(arf.config.pid == nil, "false restores automatic startup")
 print("configuration tests passed")
+assert(defaults.execution_timeout_ms == false)
+for _, value in ipairs({ 0, -1, 1.5, 300001, true, "100", {} }) do
+	reject({ execution_timeout_ms = value }, "execution_timeout_ms")
+end
+for _, value in ipairs({ 1, 300000, false }) do
+	arf.setup({ execution_timeout_ms = value })
+	assert(arf.config.execution_timeout_ms == value)
+end

@@ -150,6 +150,7 @@ require("arf").setup({
   executable = "arf",
   pid = nil,                -- omitted: auto-start; number: external; false: reset
   startup_timeout_ms = 10000, -- 10 seconds
+  execution_timeout_ms = false, -- optional execution deadline in milliseconds
   eval_timeout_ms = 300000, -- 5 minutes per evaluation
 
   output = {
@@ -216,3 +217,5 @@ Built with AI-assisted “vibe coding” for my own R workflow. I’m keeping th
 ## License
 
 [MIT](LICENSE) © 2026 topazape.
+
+`execution_timeout_ms` defaults to `false`; set it to an integer from 1 to 300000 to request an execution deadline (arf 0.7.2 or later). The interrupt is cooperative and may not stop R. An evaluation that catches the interrupt and completes is successful. `eval_timeout_ms` limits the response wait and can expire first, so allow enough time for execution and output processing.
